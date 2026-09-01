@@ -1,0 +1,13 @@
+# udev rules for the Hantek DSO-5200/5200A, filtered from OpenHantek's
+# firmware/60-hantek.rules (only the 5200/5200A VID:PID pairs, pre- and
+# post-firmware). Grants the logged-in user access without root.
+#
+# Install: sudo cp 99-dso5200.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules
+
+# Hantek DSO-5200
+SUBSYSTEM=="usb", ACTION=="add", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="04b5", ATTRS{idProduct}=="5200", TAG+="uaccess", TAG+="udev-acl"
+SUBSYSTEM=="usb", ACTION=="add", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="5200", TAG+="uaccess", TAG+="udev-acl"
+
+# Hantek DSO-5200A
+SUBSYSTEM=="usb", ACTION=="add", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="04b5", ATTRS{idProduct}=="520a", TAG+="uaccess", TAG+="udev-acl"
+SUBSYSTEM=="usb", ACTION=="add", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="520a", TAG+="uaccess", TAG+="udev-acl"
