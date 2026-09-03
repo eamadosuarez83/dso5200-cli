@@ -11,18 +11,36 @@ para estudiarlo de forma progresiva: de "cómo se abre el cable USB" hasta
 - **Dónde está** (archivo + función), con una explicación de la implementación.
 - **Preguntas para comprobar que lo entendiste**.
 
+> Los diagramas de este documento están en sintaxis [Graphviz DOT](https://graphviz.org/doc/info/lang.html)
+> (bloques ` ```dot `). Para compilar este archivo a PDF con pandoc, los
+> diagramas se renderizan vía el filtro `pandoc-graphviz.lua` incluido en esta
+> misma carpeta (requiere el paquete `graphviz` instalado, comando `dot`):
+> ```sh
+> pandoc GUIA_ESTUDIO.md --lua-filter=pandoc-graphviz.lua -o guia.pdf --pdf-engine=xelatex
+> ```
+> Sin el filtro, pandoc muestra el código DOT como texto plano en vez del
+> diagrama.
+
 ## 0. Mapa general antes de entrar en detalle
 
 El programa es un pipeline lineal: cada bloque le entrega datos al siguiente.
 
-```mermaid
-flowchart LR
-    A["1. Conexion USB\nusb/usbdevice.*\nusb/finddevice.*"] --> B["2. Carga de firmware\nusb/ezusb.*\nusb/uploadfirmware.*"]
-    B --> C["3. Protocolo\nprotocol/*"]
-    C --> D["4. Control del DSO\ndevice/dso5200.*"]
-    D --> E["5. Recepcion de datos\n(dentro de dso5200.cpp)"]
-    E --> F["6. Procesamiento\nconvertRawDataToSamples()"]
-    F --> G["7. Visualizacion\nstreaming/sample_server.*\nviewer/dso_viewer.py"]
+```dot
+digraph mapa_general {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor="#eef2ff", fontname="Helvetica", fontsize=11, margin="0.2,0.15"];
+    edge [fontname="Helvetica"];
+
+    A [label="1. Conexion USB\nusb/usbdevice.*\nusb/finddevice.*"];
+    B [label="2. Carga de firmware\nusb/ezusb.*\nusb/uploadfirmware.*"];
+    C [label="3. Protocolo\nprotocol/*"];
+    D [label="4. Control del DSO\ndevice/dso5200.*"];
+    E [label="5. Recepcion de datos\n(dentro de dso5200.cpp)"];
+    F [label="6. Procesamiento\nconvertRawDataToSamples()"];
+    G [label="7. Visualizacion\nstreaming/sample_server.*\nviewer/dso_viewer.py"];
+
+    A -> B -> C -> D -> E -> F -> G;
+}
 ```
 
 `main.cpp` es el que arma esta cadena en tiempo de ejecución: busca el
