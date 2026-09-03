@@ -11,7 +11,8 @@ muestras en vivo a un visor en Python (matplotlib).
 - **Incluye:** comunicación USB (libusb), carga de firmware Cypress FX2,
   protocolo binario del DSO-5200/5200A, y control de: barrido en tiempo
   (timebase), volts/división por canal, selector de canal, pendiente de
-  disparo.
+  disparo y nivel de disparo (`trigger <volts>`) — con disparo real
+  (no sólo forzado) y la señal alineada de forma estable en pantalla.
 - **No incluye** (fuera de alcance, no pedido): GUI, exportación a archivo,
   modo roll/scan (barrido continuo a timebases muy lentas), selección de
   fuente de disparo (siempre CH1) ni de modo de disparo (siempre "auto": el

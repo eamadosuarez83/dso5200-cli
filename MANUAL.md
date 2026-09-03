@@ -190,7 +190,7 @@ Canal 1 ajustado a 0.2 V/div.
 > timebase 500us
 Timebase ajustado a 500us de pantalla.
 > status
-sampling=on samplerate=20.480MS/s fastRate=no ch1=on@0.20V/div ch2=on@4.00V/div slope=rising
+sampling=on samplerate=20.480MS/s fastRate=no ch1=on@0.20V/div ch2=on@4.00V/div slope=rising triggerLevel=0.000V(ch1)
 ```
 
 ### Ajustar el nivel de disparo para estabilizar la señal

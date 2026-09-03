@@ -82,12 +82,13 @@ de lo demás es posible).
 | `src/usb/usbdevice.h` / `.cpp` | Clase `USBDevice`: abre el dispositivo, reclama la interfaz, expone `bulkTransfer`/`controlTransfer` |
 | `src/usb/finddevice.h` / `.cpp` | Función `Dso5200::findDevice()`: recorre todos los dispositivos USB buscando el DSO-5200/5200A |
 
-**Enumeración** (`finddevice.cpp:14`, función `findDevice`): usa
+**Enumeración** (`finddevice.cpp:13`, función `findDevice`): usa
 `libusb_get_device_list()` para obtener la lista de dispositivos, y para cada
 uno lee su `libusb_device_descriptor` (`libusb_get_device_descriptor`) y
 compara `idVendor`/`idProduct` contra los VID:PID conocidos del DSO-5200
-(constantes al inicio del archivo: `VID_FIRMWARE`, `PID_5200_FIRMWARE`,
-`PID_5200A_FIRMWARE`, `VID_NO_FIRMWARE`, `PID_NO_FIRMWARE`).
+(constantes al inicio del archivo: `VID_FIRMWARE`, `VID_NO_FIRMWARE`,
+`PID_5200`, `PID_5200A` — el product ID ya identifica la variante en ambos
+estados, ver el caso real del Bloque 1 en "Para comprobar que lo entendiste").
 
 Punto sutil de manejo de memoria: `libusb_free_device_list(deviceList, true)`
 libera la lista y le quita una referencia a cada dispositivo. Por eso el
@@ -265,7 +266,7 @@ Ninguna — es C++ estándar (`<vector>`, bitfields, `#pragma pack`).
 | `controlvalue.h` | Subcódigos usados dentro del comando genérico `CONTROL_VALUE` (`0xa2`) |
 
 **Ejemplo concreto para seguir con el debugger o a mano** — `BulkSetGain`
-(`bulkStructs.h:103`, implementación en `bulkStructs.cpp:244`):
+(`bulkStructs.h:101`, implementación en `bulkStructs.cpp:244`):
 ```cpp
 BulkSetGain::BulkSetGain() : BulkCommand(BulkCode::SETGAIN, 8) { this->init(); }
 void BulkSetGain::setGain(ChannelID channel, uint8_t value) {
@@ -284,7 +285,7 @@ formas distintas.
 **Cómo se envía un comando bulk realmente** — todo comando bulk va precedido
 por un `ControlBeginCommand` (`controlStructs.cpp:11`), que le avisa al
 dispositivo "viene un comando bulk"; esto está encapsulado en
-`Dso5200Control::bulkCommand()` (Bloque 4, `dso5200.cpp:302`) para no tener
+`Dso5200Control::bulkCommand()` (Bloque 4, `dso5200.cpp:330`) para no tener
 que repetirlo en cada punto de uso.
 
 ### Para comprobar que lo entendiste
@@ -345,21 +346,30 @@ canal, qué samplerate está corriendo, etc.) para poder hacer esos cálculos.
 | `device/dso5200.h` | Declaración de `Dso5200Control`: estado (`voltage[]`, `trigger`, comandos persistentes) y métodos |
 | `device/dso5200.cpp` | La implementación completa — es el archivo más denso del proyecto, vale la pena leerlo función por función |
 
-**Cálculo de samplerate** (`dso5200.cpp:123`, `getBestSamplerate`):
+**Cálculo de samplerate** (`dso5200.cpp:140`, `getBestSamplerate`):
 recibe la tasa deseada y calcula el divisor entero más cercano
 (`base / divisor / samplerate`), redondeando hacia arriba o abajo según si se
 pide "al menos esta tasa" o "como máximo esta tasa". El resultado se manda al
-hardware en `updateSamplerate()` (línea 147), que separa el divisor en dos
+hardware en `updateSamplerate()` (línea 164), que separa el divisor en dos
 valores de 8/16 bits (`samplerateFast`/`samplerateSlow`) porque así está
 definido el comando `BulkSetSamplerate5200` (ver Bloque 3).
 
-**Ajuste de ganancia** (`dso5200.cpp:185`, `doSetGain`): busca en la tabla
-`kGain` (línea 33) el primer escalón que cubra el valor pedido, actualiza el
+**Ajuste de ganancia** (`dso5200.cpp:202`, `doSetGain`): busca en la tabla
+`kGain` (línea 34) el primer escalón que cubra el valor pedido, actualiza el
 comando `gainCommand` y el comando `relaysCommand` (los relés analógicos que
 conmutan atenuadores/rangos), y **encadena** una llamada a `doSetOffset()` —
 porque el offset válido depende de qué ganancia está puesta.
 
-**Máquina de estados de captura** (`dso5200.cpp:424`, `threadMain`): un hilo
+**Nivel de disparo** (`dso5200.cpp:238`, `doSetTriggerLevel`, expuesto por el
+comando CLI `trigger <volts>` vía `setTriggerLevel()` en la línea 110): la
+lógica es simétrica a la de offset — el nivel en volts se convierte a un
+valor crudo del rango de calibración del canal (mismos `offsetLimit` que usa
+`doSetOffset()`) y se manda por `ControlSetOffset::setTrigger()`. Sólo tiene
+efecto si el canal coincide con `trigger.source` (fijo en CH1 en esta
+herramienta — ver el segundo caso real, más abajo, sobre qué pasó cuando eso
+no estaba bien configurado).
+
+**Máquina de estados de captura** (`dso5200.cpp:452`, `threadMain`): un hilo
 dedicado (ver el Anexo de hilos, más abajo) que pregunta periódicamente al
 osciloscopio en qué estado está (`CAPTURE_WAITING`, `CAPTURE_SAMPLING`,
 `CAPTURE_READY5200`) y decide qué hacer en cada uno — esto conecta
@@ -400,7 +410,7 @@ directamente con el Bloque 5.
 ### Para comprobar que lo entendiste
 
 - Si pedís `volts 1 0.5` (0.5 V/div) por CLI, ¿qué escalón real termina
-  usando el hardware, y por qué (mirá `kGain` en `dso5200.cpp:33`)?
+  usando el hardware, y por qué (mirá `kGain` en `dso5200.cpp:34`)?
 - ¿Por qué `doSetChannelUsed()` puede terminar llamando a
   `doSetRecordTime()` (mirá el final de la función)? ¿Qué relación hay entre
   "cuántos canales están activos" y "qué samplerate máximo se puede pedir"?
@@ -438,19 +448,19 @@ paquete USB máximo, así que hay que trocear la lectura.
 
 ### Dónde está
 
-**Estado de captura** (`dso5200.cpp:308`, `getCaptureState`): manda
+**Estado de captura** (`dso5200.cpp:336`, `getCaptureState`): manda
 `BulkGetCaptureState` (comando `0x06`) y lee la respuesta con
 `device->bulkRead(&response)` — nótese que acá `bulkRead` (definido en
 `usbdevice.h:49`) usa el mismo buffer del objeto `response` tanto para pedir
 como para recibir, un patrón típico en protocolos de bulk transfer simples.
 
-**Uso del punto de disparo** (`dso5200.cpp`, dentro de `threadMain`, justo
+**Uso del punto de disparo** (`dso5200.cpp:462`, dentro de `threadMain`, justo
 después de `getCaptureState()`): `trigger.point = triggerPoint;` — se usa
 **tal cual**, sin decodificación adicional. No siempre fue así: ver el caso
 real más abajo, sobre por qué se sacó una decodificación de bits que
 OpenHantek sí aplica.
 
-**Lectura troceada** (`dso5200.cpp:319`, `getSamples`, que llama a
+**Lectura troceada** (`dso5200.cpp:347`, `getSamples`, que llama a
 `device->bulkReadMulti()` en `usbdevice.cpp`): pide `GETDATA` (`0x05`),
 calcula cuántos bytes totales espera (`getSampleCount()` — que depende de si
 está en modo fast-rate, Bloque 4) y delega el troceo real en
@@ -534,7 +544,7 @@ tengan sentido físico (volts).
 
 ### Dónde está
 
-`dso5200.cpp:344`, `convertRawDataToSamples`. Es la función más intrincada
+`dso5200.cpp:372`, `convertRawDataToSamples`. Es la función más intrincada
 del proyecto — conviene leerla junto con `bulkcode.h` (comentario de
 `GETDATA`, que dibuja en ASCII cómo viene el buffer) en otra pestaña.
 
