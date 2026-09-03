@@ -73,7 +73,6 @@ class Dso5200Control : public IDsoSource {
     bool doSetChannelUsed(unsigned channel, bool used);
     bool doSetPretriggerPosition(double position);
     bool retrieveChannelLevelData();
-    static unsigned calculateTriggerPoint(unsigned value);
     std::pair<int, unsigned> getCaptureState();
     std::vector<unsigned char> getSamples(unsigned &previousSampleCount);
     CaptureFrame convertRawDataToSamples(const std::vector<unsigned char> &rawData);

@@ -142,7 +142,7 @@ Verificado: tras el fix, el disparo real engancha en el primer o segundo
 ciclo de sondeo en el 100% de las capturas con una señal de prueba conectada,
 en vez de caer siempre en el disparo forzado del ciclo 9.
 
-## Función de disparo (nivel/pendiente) y limitación conocida
+## Función de disparo (nivel/pendiente) — resuelto, incluye alineación exacta
 
 Se agregó el comando `trigger <volts>` (ver tabla de comandos abajo), que
 llama a `Dso5200Control::setTriggerLevel()` → `doSetTriggerLevel()` (ya
@@ -151,23 +151,27 @@ en la CLI que lo invocara). Junto con el fix de fuente de disparo de arriba,
 esto permite que el disparo real (no forzado) enganche de forma consistente
 sobre una señal periódica.
 
-**Limitación conocida**: aunque el disparo real ahora engancha rápido y de
-forma confiable (confirmado con `--debug`: transición a `CAPTURE_READY5200`
-en el ciclo 1-2 de sondeo, no en el ciclo 9 del disparo forzado), la
-posición horizontal del flanco dentro de cada captura todavía **no queda
-perfectamente fija** de una captura a la siguiente — se investigó con
-trazas de `--debug` mostrando el `triggerPoint` crudo devuelto por el
-hardware junto con la posición de flanco detectada en cada frame, y no hay
-una correlación simple entre ambos que explique el desalineamiento. El
-`triggerPoint` crudo varía ampliamente entre capturas (esperable: refleja
-cuántas muestras habían entrado al buffer circular antes de que ocurriera el
-disparo), pero el re-indexado del buffer circular
-(`bufferPosition = trigger.point * 2` en `convertRawDataToSamples()`) no
-está compensando esa variación tan bien como debería. Es una investigación
-de protocolo más profunda que queda pendiente — mientras tanto, la señal se
-ve dramáticamente más estable que antes del fix (el disparo real sí queda
-enganchado, sólo falta afinar la alineación horizontal exacta), aunque no
-perfectamente estática como un osciloscopio comercial.
+**La alineación horizontal del flanco también se resolvió.** Encontrado
+comparando contra una implementación independiente (el driver
+[`hantek-dso` de sigrok](https://github.com/sigrokproject/libsigrok/blob/master/src/hardware/hantek-dso/protocol.c),
+que da soporte a la misma familia de osciloscopios Hantek): tanto sigrok
+como OpenHantek decodifican el `triggerPoint` crudo que devuelve
+`GETCAPTURESTATE` con el mismo truco de inversión de bits — pero el propio
+comentario del código de sigrok admite *"No idea why the device reports the
+trigger point this way"* (ese decode viene de ingeniería inversa contra el
+DSO-2090/2150, sin una explicación teórica sólida ni siquiera para sus
+autores). Probando empíricamente contra un DSO-5200A real (25+ capturas,
+midiendo en qué muestra exacta aparecía el flanco de la señal de prueba en
+cada una): con el decode aplicado, el flanco aparecía disperso en casi toda
+la ventana de captura (desviación estándar ≈3100 muestras sobre una ventana
+de 10240); **usando el valor crudo directamente, sin ese decode**, el flanco
+quedó fijo en la muestra 14-15 en el 100% de las capturas (desviación
+estándar = 0), tanto en modo normal (2 canales) como en modo fast-rate (1
+canal). El decode de bits, sea lo que sea que compense en otros modelos
+Hantek, **no aplica al DSO-5200(A)**. Corregido eliminando esa decodificación
+(`Dso5200Control` ya no tiene una función `calculateTriggerPoint`; ver el
+comentario en `dso5200.cpp` junto a `retrieveChannelLevelData()` para el
+detalle completo, con referencia cruzada al código de sigrok).
 
 ## Protocolo de streaming hacia el visor
 

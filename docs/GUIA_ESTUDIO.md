@@ -428,10 +428,13 @@ paquete USB máximo, así que hay que trocear la lectura.
   sigue aplicando dentro de `bulkReadMulti`). Pedir de una vez un bloque de
   datos más grande que ese tamaño requiere partirlo en varias transferencias
   bulk sucesivas.
-- **Punto de disparo (trigger point) codificado**: el osciloscopio no
-  devuelve directamente "la muestra 1234 es donde disparó" — devuelve un
-  valor codificado que hay que decodificar con un truco de bits
-  (`calculateTriggerPoint`) antes de usarlo como índice.
+- **Punto de disparo (trigger point)**: el osciloscopio no devuelve
+  directamente "el flanco disparó en la muestra 1234 de la pantalla" — mezclado
+  con `GETCAPTURESTATE` devuelve un valor que indica dónde, dentro del buffer
+  circular interno del hardware, ocurrió el disparo. Ese valor hay que usarlo
+  para "rotar" la lectura del buffer de forma que la muestra del disparo quede
+  al principio de lo que se manda al visor (si no, la señal se ve temblando de
+  un lado a otro en cada captura, en vez de quedarse fija).
 
 ### Dónde está
 
@@ -441,21 +444,11 @@ paquete USB máximo, así que hay que trocear la lectura.
 `usbdevice.h:49`) usa el mismo buffer del objeto `response` tanto para pedir
 como para recibir, un patrón típico en protocolos de bulk transfer simples.
 
-**Decodificación del punto de disparo** (`dso5200.cpp:295`,
-`calculateTriggerPoint`):
-```cpp
-unsigned Dso5200Control::calculateTriggerPoint(unsigned value) {
-    unsigned result = value;
-    for (unsigned bitValue = 1; bitValue; bitValue <<= 1)
-        if (result & bitValue) result ^= bitValue - 1;
-    return result;
-}
-```
-Esto es una decodificación bit a bit específica del hardware Hantek (no es un
-algoritmo estándar con nombre) — "cada bit puesto invierte todos los bits de
-menor valor". Es el tipo de cosa que sólo se descubre por ingeniería inversa,
-así que no hace falta "entender por qué" a nivel matemático, sino reconocer
-que existe y confiar en que fue portado igual que en el proyecto original.
+**Uso del punto de disparo** (`dso5200.cpp`, dentro de `threadMain`, justo
+después de `getCaptureState()`): `trigger.point = triggerPoint;` — se usa
+**tal cual**, sin decodificación adicional. No siempre fue así: ver el caso
+real más abajo, sobre por qué se sacó una decodificación de bits que
+OpenHantek sí aplica.
 
 **Lectura troceada** (`dso5200.cpp:319`, `getSamples`, que llama a
 `device->bulkReadMulti()` en `usbdevice.cpp`): pide `GETDATA` (`0x05`),
@@ -463,6 +456,34 @@ calcula cuántos bytes totales espera (`getSampleCount()` — que depende de si
 está en modo fast-rate, Bloque 4) y delega el troceo real en
 `USBDevice::bulkReadMulti`, que hace un *loop* de `bulkTransfer()`s de a
 `inPacketLength` bytes hasta completar el total pedido.
+
+> **Tercer caso real: una decodificación "canónica" que resultó estar de
+> más**. OpenHantek decodifica el valor crudo de `triggerPoint` con un truco
+> de bits antes de usarlo (`calculateTriggerPoint`, "cada bit puesto invierte
+> todos los bits de menor valor") — y este port lo copió tal cual al
+> principio, fiel al original. El resultado: el disparo real enganchaba
+> (Bloque 4), pero la señal seguía "temblando" — el flanco aparecía en una
+> muestra distinta en cada captura, disperso por toda la ventana. Para
+> investigarlo se comparó contra una implementación independiente de otro
+> proyecto que también soporta esta familia de Hantek
+> ([driver `hantek-dso` de sigrok](https://github.com/sigrokproject/libsigrok/blob/master/src/hardware/hantek-dso/protocol.c)):
+> **el mismo truco de bits aparece ahí también**, con un comentario del propio
+> autor de sigrok admitiendo *"No idea why the device reports the trigger
+> point this way"* — es decir, ni el equipo de OpenHantek ni el de sigrok
+> tenían una explicación real de por qué hace falta esa decodificación,
+> sólo la copiaron de la ingeniería inversa original contra el DSO-2090/2150.
+> Probando empíricamente contra el DSO-5200A (capturando 25+ frames, midiendo
+> en qué muestra exacta aparecía un flanco real conocido en cada uno, primero
+> con la decodificación y después sin ella) se confirmó: **sin decodificar,
+> el flanco queda fijo en la misma muestra siempre** (desviación estándar 0
+> en la posición del flanco, contra ~3100 muestras de dispersión con la
+> decodificación puesta). La decodificación de bits simplemente no aplica al
+> DSO-5200(A) — se eliminó del código. Moraleja: que un algoritmo esté en el
+> proyecto original (¡e incluso replicado en un segundo proyecto
+> independiente!) no lo vuelve automáticamente correcto para *tu* modelo
+> específico de hardware — cuando algo se explica con "no sabemos muy bien
+> por qué, pero funciona", conviene medirlo con el dispositivo real antes de
+> confiar en portarlo sin cuestionarlo.
 
 ### Para comprobar que lo entendiste
 

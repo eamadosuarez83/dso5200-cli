@@ -219,12 +219,11 @@ Nivel de disparo ajustado a 0.45 V.
 Con el disparo bien configurado, el osciloscopio debería enganchar un flanco
 real casi de inmediato (visible con `--debug`: la transición a
 `CAPTURE_READY5200` ocurre en el ciclo 1-2 de sondeo, no en el ciclo 9 del
-disparo forzado). **Limitación conocida**: incluso con el disparo enganchando
-sobre un flanco real, la posición horizontal exacta del flanco en pantalla
-todavía puede variar levemente entre capturas — ver "Función de disparo... y
-limitación conocida" en el README para el detalle técnico. La señal se ve
-mucho más estable que sin este fix, pero no perfectamente fija como en un
-osciloscopio comercial.
+disparo forzado), **y la posición horizontal del flanco queda fija en
+pantalla** (verificado: la misma muestra ±1 en decenas de capturas
+consecutivas, tanto con uno como con dos canales activos) — ver "Función de
+disparo... — resuelto" en el README para el detalle técnico de cómo se
+encontró y corrigió.
 
 ## 6. Probar sin hardware (modo simulado)
 

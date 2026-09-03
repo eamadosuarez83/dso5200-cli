@@ -317,12 +317,15 @@ bool Dso5200Control::retrieveChannelLevelData() {
     return true;
 }
 
-unsigned Dso5200Control::calculateTriggerPoint(unsigned value) {
-    unsigned result = value;
-    for (unsigned bitValue = 1; bitValue; bitValue <<= 1)
-        if (result & bitValue) result ^= bitValue - 1;
-    return result;
-}
+// Note: upstream OpenHantek decodes the raw GETCAPTURESTATE trigger point with a bit-inversion
+// trick before using it (see calculateTriggerPoint() history for the exact algorithm; it's also
+// used unmodified in the sigrok hantek-dso driver's dso_get_capturestate(), whose comment admits
+// "No idea why the device reports the trigger point this way" - the origin of that decode is
+// itself uncertain, empirically reverse-engineered against the DSO-2090/2150). Tested against a
+// real DSO-5200A: the decode does NOT apply here - using the raw trigger point directly (see
+// threadMain() below) locks the trigger position to within 1-2 samples across dozens of captures,
+// while running it through that decode scattered it across the whole capture window. Whatever the
+// decode compensates for on other models, the DSO-5200(A) doesn't need it.
 
 int Dso5200Control::bulkCommand(const std::vector<uint8_t> &command, int attempts) {
     int errorCode = device->controlWrite(&beginCommand);
@@ -456,11 +459,11 @@ void Dso5200Control::threadMain() {
             const int previousState = captureState;
             unsigned triggerPoint;
             std::tie(captureState, triggerPoint) = getCaptureState();
-            trigger.point = calculateTriggerPoint(triggerPoint);
+            trigger.point = triggerPoint; // raw value, no bit-decode (see the comment below retrieveChannelLevelData())
 
             if (debugLog && captureState == CAPTURE_READY5200) {
-                std::cerr << "[dso5200] raw triggerPoint=" << triggerPoint << " -> trigger.point=" << trigger.point
-                          << " (bufferPosition would start at " << trigger.point * 2 << ")\n";
+                std::cerr << "[dso5200] trigger.point=" << trigger.point << " (bufferPosition starts at "
+                          << trigger.point * 2 << ")\n";
             }
 
             if (debugLog && captureState != previousState) {
