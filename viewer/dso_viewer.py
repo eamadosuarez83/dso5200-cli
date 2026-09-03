@@ -12,6 +12,19 @@ import struct
 import threading
 import queue
 
+import matplotlib
+
+# Prefer TkAgg over the default Qt backend: a background thread here feeds
+# frames into a queue.Queue (safe on its own), but matplotlib's Qt (PyQt6)
+# backend has been observed to abort the whole process with a Qt-internal
+# "QMessageLogger::fatal" inside QTimer's event handling during long-running
+# animated sessions on this stack (confirmed via a core dump). TkAgg avoids
+# PyQt6 entirely and is the more battle-tested backend for this pattern.
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass  # fall back to whatever matplotlib picks by default
+
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 

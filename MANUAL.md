@@ -7,7 +7,7 @@ y [docs/PROTOCOL.md](docs/PROTOCOL.md).
 ## 1. Antes de conectar el osciloscopio
 
 ```sh
-sudo pacman -S libusb cmake gcc python-matplotlib
+sudo pacman -S libusb cmake gcc python-matplotlib tk
 cd dso5200basic
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
@@ -128,6 +128,21 @@ Probá conectando directo a un puerto USB del equipo, sin hub.
 Corré con `./build/dso5200basic --debug`: traza a stderr cada transición de
 `captureState` y cuántos bytes/muestras trae cada captura. Útil para
 diagnosticar un osciloscopio que parece "colgado" sin capturar nada.
+
+**El visor (`dso_viewer.py`) se cierra solo / "se cae" la conexión y no vuelve a conectar**
+Si ves varios mensajes seguidos de `Conexión perdida (...), reintentando en
+2s...` y el proceso de `dso5200basic` ya no está corriendo, lo que pasó es
+que el visor perdió la conexión porque `dso5200basic` se cerró o se
+reinició — el visor por sí solo reintenta indefinidamente y no es un bug (es
+el comportamiento esperado, solo hace falta volver a arrancar
+`dso5200basic`). Si en cambio la **ventana del visor** desaparece sola con
+`dso5200basic` todavía corriendo, era un crash real: se detectó (con
+`coredumpctl list`) que el backend Qt/PyQt6 de matplotlib podía abortar el
+proceso completo (`QMessageLogger::fatal` dentro del manejo de un `QTimer`)
+en sesiones largas. Ya está corregido forzando el backend `TkAgg` al
+principio de `viewer/dso_viewer.py`, verificado con una sesión real de 95+
+segundos sin caídas. Si ya tenías el repo desde antes, actualizá
+`dso_viewer.py`.
 
 **El osciloscopio conecta pero `start` nunca produce datos / se queda "pegado"**
 Sin nada conectado a la punta del canal de disparo (CH1 por defecto), puede

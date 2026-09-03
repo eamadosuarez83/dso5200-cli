@@ -21,7 +21,7 @@ muestras en vivo a un visor en Python (matplotlib).
 ## Build (Arch Linux)
 
 ```sh
-sudo pacman -S libusb cmake gcc python-matplotlib
+sudo pacman -S libusb cmake gcc python-matplotlib tk
 cd dso5200basic
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
@@ -79,10 +79,12 @@ FX2, conexión, captura continua y streaming al visor con valores de voltaje
 estables y físicamente coherentes). Ver `docs/GUIA_ESTUDIO.md` para el detalle
 de qué se verificó en cada bloque.
 
-Dos problemas reales aparecieron sólo al probar contra hardware, y ya están
-corregidos (ver "Desviaciones deliberadas respecto a OpenHantek" abajo):
-detección de variante 5200 vs 5200A antes de tener firmware, y un bloqueo del
-osciloscopio en modo simulación de disparo automático sin señal conectada.
+Varios problemas reales aparecieron sólo al probar contra hardware, y ya
+están corregidos (ver "Desviaciones deliberadas respecto a OpenHantek"
+abajo): detección de variante 5200 vs 5200A antes de tener firmware, un
+bloqueo del osciloscopio en modo simulación de disparo automático sin señal
+conectada, y un crash del visor Python (backend Qt de matplotlib abortando
+el proceso en sesiones largas, confirmado con `coredumpctl`).
 
 Para depurar a bajo nivel (ver transiciones de `captureState` y conteo de
 muestras en tiempo real), usá `./build/dso5200basic --debug`.
@@ -116,6 +118,15 @@ DSO-5200A se queda indefinidamente en `CAPTURE_SAMPLING` en vez de volver a
 `CAPTURE_WAITING` — y como upstream nunca reintenta desde `CAPTURE_SAMPLING`,
 la captura queda colgada para siempre. Se corrigió compartiendo la misma
 lógica de armado/forzado/reinicio entre ambos estados.
+
+**Backend Qt del visor abortaba el proceso**: en una sesión real con señal
+conectada, `viewer/dso_viewer.py` (con el backend por defecto de matplotlib,
+`qtagg`/PyQt6) crasheó con `SIGABRT` — confirmado con `coredumpctl info`, la
+pila muestra `QMessageLogger::fatal` disparado desde el manejo interno de un
+`QTimer` de Qt. No hay forma de recuperarse de eso desde Python (es un abort
+a nivel de la librería Qt, no una excepción). Se corrigió forzando el backend
+`TkAgg` al principio del script (evita PyQt6 por completo), verificado con
+una sesión real de 95+ segundos sin caídas.
 
 ## Protocolo de streaming hacia el visor
 
