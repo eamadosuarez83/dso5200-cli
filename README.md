@@ -33,7 +33,7 @@ se copia automáticamente junto al binario tras el build.
 Para que el dispositivo sea accesible sin root:
 
 ```sh
-sudo cp 99-dso5200.rules /etc/udev/rules.d/
+sudo cp 60-dso5200.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 ```
 
@@ -63,39 +63,59 @@ Comandos interactivos (se escriben en la terminal donde corre `dso5200basic`):
 | `help` | Ayuda |
 | `quit` | Salir |
 
-Flags de `dso5200basic`: `--simulate`, `--port <n>` (default 5200),
-`--firmware-dir <dir>`, `--model5200a` (al detectar un dispositivo sin
-firmware, sube el firmware del 5200A en vez del 5200 plano — ambas variantes
-comparten el mismo VID/PID antes de tener firmware y no se pueden distinguir
-de antemano).
+Flags de `dso5200basic`: `--simulate`, `--debug` (traza captureState/muestras
+a stderr), `--port <n>` (default 5200), `--firmware-dir <dir>`. La variante
+(DSO-5200 vs DSO-5200A) se detecta
+automáticamente por el product ID (`5200` vs `520a`), que ya identifica el
+modelo aunque el dispositivo todavía no tenga firmware cargado (solo el
+vendor ID cambia de `04b4` a `04b5` al cargarlo) — confirmado contra
+hardware real.
 
-## Limitación conocida: sin hardware para probar
+## Validado contra hardware real
 
-Este port se escribió **sin el osciloscopio físicamente disponible**. La capa
-de protocolo/USB/firmware (`src/protocol/`, `src/usb/`, `src/device/dso5200.*`)
-es un port fiel de la lógica ya probada de OpenHantek (mismas fórmulas de
-samplerate, mismo desempaquetado de muestras de 10 bits, mismos comandos
-bulk/control), no una reescritura desde cero — pero **no se pudo validar
-contra el dispositivo real**. Lo que sí se verificó en esta máquina:
+Este port se escribió inicialmente sin el osciloscopio disponible, pero ya se
+probó contra un DSO-5200A físico (detección USB, subida de firmware Cypress
+FX2, conexión, captura continua y streaming al visor con valores de voltaje
+estables y físicamente coherentes). Ver `docs/GUIA_ESTUDIO.md` para el detalle
+de qué se verificó en cada bloque.
 
-- Compila sin Qt (`ldd build/dso5200basic` no muestra ninguna librería Qt).
-- El modo `--simulate` ejercita toda la tubería real (CLI, hilo de captura,
-  servidor TCP, visor Python) con una señal sintética.
+Dos problemas reales aparecieron sólo al probar contra hardware, y ya están
+corregidos (ver "Desviaciones deliberadas respecto a OpenHantek" abajo):
+detección de variante 5200 vs 5200A antes de tener firmware, y un bloqueo del
+osciloscopio en modo simulación de disparo automático sin señal conectada.
 
-Cuando conectes el osciloscopio, corré `./build/dso5200basic` (sin
-`--simulate`) y si algo falla, lo más probable es un detalle del protocolo
-binario que solo se puede afinar contra hardware real.
+Para depurar a bajo nivel (ver transiciones de `captureState` y conteo de
+muestras en tiempo real), usá `./build/dso5200basic --debug`.
 
-## Desviación deliberada respecto a OpenHantek
+## Desviaciones deliberadas respecto a OpenHantek
 
-`HantekDsoControl::setRecordTime()` en OpenHantek nunca llega a usar la
-duración solicitada para calcular el downsampler (siempre pasa
-`downsampler=0`, fijando el samplerate al máximo del dispositivo) — parece un
-bug latente en el código original, enmascarado porque la GUI usa mayormente
-`setSamplerate()` (que sí funciona) en su lugar. Como el comando `timebase`
-de esta herramienta depende exactamente de esa lógica, `doSetRecordTime()` en
-`src/device/dso5200.cpp` sigue el patrón (correcto) de `setSamplerate()` en
-vez de reproducir el bug de `setRecordTime()`.
+**`setRecordTime()`**: en OpenHantek, `HantekDsoControl::setRecordTime()`
+nunca llega a usar la duración solicitada para calcular el downsampler
+(siempre pasa `downsampler=0`, fijando el samplerate al máximo del
+dispositivo) — parece un bug latente en el código original, enmascarado
+porque la GUI usa mayormente `setSamplerate()` (que sí funciona) en su lugar.
+Como el comando `timebase` de esta herramienta depende exactamente de esa
+lógica, `doSetRecordTime()` en `src/device/dso5200.cpp` sigue el patrón
+(correcto) de `setSamplerate()` en vez de reproducir el bug de
+`setRecordTime()`.
+
+**Detección de variante sin firmware**: se asumió inicialmente (siguiendo una
+lectura apresurada del modelo original) que el DSO-5200 y el DSO-5200A
+comparten el mismo product ID antes de cargar firmware. **Falso**: contra
+hardware real, el product ID (`5200` vs `520a`) ya identifica la variante en
+ambos estados, sólo el vendor ID cambia (`04b4`→`04b5`) al cargar firmware.
+Corregido en `src/usb/finddevice.cpp` — ya no hace falta indicar la variante
+a mano.
+
+**Recuperación del disparo (trigger) sin señal conectada**: el bucle de
+captura (`Dso5200Control::threadMain`, `src/device/dso5200.cpp`) porta la
+máquina de estados de `HantekDsoControl::run()` de OpenHantek, que sólo
+reintenta armar/forzar el disparo mientras `captureState == CAPTURE_WAITING`.
+Contra hardware real, sin señal en el canal de disparo (CH1 por defecto), el
+DSO-5200A se queda indefinidamente en `CAPTURE_SAMPLING` en vez de volver a
+`CAPTURE_WAITING` — y como upstream nunca reintenta desde `CAPTURE_SAMPLING`,
+la captura queda colgada para siempre. Se corrigió compartiendo la misma
+lógica de armado/forzado/reinicio entre ambos estados.
 
 ## Protocolo de streaming hacia el visor
 

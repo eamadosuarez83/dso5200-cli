@@ -23,6 +23,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 #include <sstream>
 
 #include "protocol/states.h"
@@ -36,7 +37,7 @@ const Dso5200Control::GainStep Dso5200Control::kGain[9] = {
 
 const unsigned short Dso5200Control::kVoltageLimit[9] = {368, 454, 908, 368, 454, 908, 368, 454, 908};
 
-Dso5200Control::Dso5200Control(USBDevice *device) : device(device) {
+Dso5200Control::Dso5200Control(USBDevice *device, bool debugLog) : device(device), debugLog(debugLog) {
     retrieveChannelLevelData();
 
     doSetChannelUsed(0, true);
@@ -428,9 +429,16 @@ void Dso5200Control::threadMain() {
         if (sampling.load()) {
             std::lock_guard<std::mutex> lock(ioMutex);
 
+            const int previousState = captureState;
             unsigned triggerPoint;
             std::tie(captureState, triggerPoint) = getCaptureState();
             trigger.point = calculateTriggerPoint(triggerPoint);
+
+            if (debugLog && captureState != previousState) {
+                std::cerr << "[dso5200] captureState " << previousState << " -> " << captureState
+                          << " (cycleCounter=" << cycleCounter << " startCycle=" << startCycle
+                          << " cycleTimeMs=" << cycleTimeMs << ")\n";
+            }
 
             if (captureState == (int)CAPTURE_ERROR) {
                 setLastError("Getting capture state failed");
@@ -438,8 +446,14 @@ void Dso5200Control::threadMain() {
                 switch (captureState) {
                 case CAPTURE_READY5200: {
                     std::vector<unsigned char> rawData = getSamples(expectedSampleCount);
+                    if (debugLog)
+                        std::cerr << "[dso5200] getSamples() -> " << rawData.size() << " bytes (expected "
+                                  << expectedSampleCount << " samples, samplingStarted=" << samplingStarted << ")\n";
                     if (samplingStarted && !rawData.empty()) {
                         CaptureFrame frame = convertRawDataToSamples(rawData);
+                        if (debugLog)
+                            std::cerr << "[dso5200] frame #" << frame.frameNumber << " with "
+                                      << frame.channels.size() << " channel(s)\n";
                         if (onFrame) onFrame(frame);
                     }
                     samplingStarted = false;
@@ -448,6 +462,17 @@ void Dso5200Control::threadMain() {
                     [[fallthrough]];
                 }
                 case CAPTURE_WAITING:
+                case CAPTURE_SAMPLING:
+                    // Deliberate deviation from upstream OpenHantek: the original only runs this
+                    // arm/force-trigger/restart logic while captureState == CAPTURE_WAITING, on the
+                    // assumption the device keeps cycling back through WAITING if no trigger fires.
+                    // Confirmed against real hardware (see docs/GUIA_ESTUDIO.md, Bloque 4/5): with no
+                    // signal on the trigger source, the DSO-5200A instead gets stuck in
+                    // CAPTURE_SAMPLING indefinitely once armed, and upstream's logic then never gets
+                    // another chance to send FORCETRIGGER or to restart the capture - the tool would
+                    // hang forever. Sharing this case with CAPTURE_WAITING lets the same
+                    // arm/force/restart-on-timeout logic run regardless of which of the two states
+                    // polling finds it in.
                     expectedSampleCount = getSampleCount();
 
                     if (samplingStarted) {
@@ -465,13 +490,13 @@ void Dso5200Control::threadMain() {
                         if (cycleCounter < 20 || cycleCounter < 4000 / cycleTimeMs) break;
                     }
 
+                    // Either never started, or stuck for too long (timeout above) - (re)start.
                     bulkCommand(BulkCaptureStart());
                     samplingStarted = true;
                     cycleCounter = 0;
                     startCycle = (int)(trigger.position * 1000.0 / cycleTimeMs + 1.0);
                     break;
 
-                case CAPTURE_SAMPLING:
                 default:
                     break;
                 }

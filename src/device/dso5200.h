@@ -27,7 +27,8 @@ class USBDevice;
 class Dso5200Control : public IDsoSource {
   public:
     /// \param device Must already be connected (USBDevice::connectDevice()). Not owned.
-    explicit Dso5200Control(USBDevice *device);
+    /// \param debugLog When true, traces capture-state transitions and sample counts to stderr.
+    explicit Dso5200Control(USBDevice *device, bool debugLog = false);
     ~Dso5200Control() override;
 
     void start() override;
@@ -134,4 +135,5 @@ class Dso5200Control : public IDsoSource {
 
     mutable std::mutex statusMutex;
     std::string lastError;
+    bool debugLog;
 };

@@ -21,7 +21,7 @@ HEADER_SIZE = struct.calcsize(HEADER_FMT)
 CHANNEL_HEADER_FMT = "<B f I"  # channel_id, volts_per_div, num_samples
 CHANNEL_HEADER_SIZE = struct.calcsize(CHANNEL_HEADER_FMT)
 
-CHANNEL_COLORS = {0: "tab:yellow", 1: "tab:cyan"}
+CHANNEL_COLORS = {0: "gold", 1: "tab:cyan"}
 
 
 def recv_exact(sock, length):

@@ -24,7 +24,7 @@ namespace {
 
 struct Options {
     bool simulate = false;
-    bool preferModelA = false;
+    bool debug = false;
     uint16_t port = 5200;
     std::string firmwareDir;
 };
@@ -37,8 +37,7 @@ std::string defaultFirmwareDir(const char *argv0) {
 void printUsage(const char *argv0) {
     std::cout << "Uso: " << argv0 << " [opciones]\n"
               << "  --simulate         No usa hardware real, genera una senal sintetica\n"
-              << "  --model5200a       Al subir firmware a un dispositivo sin firmware, usa\n"
-              << "                     el firmware del DSO-5200A en vez del DSO-5200 (default)\n"
+              << "  --debug            Traza transiciones de captureState y conteo de muestras a stderr\n"
               << "  --port <n>         Puerto TCP para el visor (default 5200)\n"
               << "  --firmware-dir <d> Directorio con los .hex de firmware (default: junto al binario)\n"
               << "  --help             Muestra esta ayuda\n";
@@ -50,8 +49,8 @@ bool parseArgs(int argc, char **argv, Options &options) {
         std::string arg = argv[i];
         if (arg == "--simulate") {
             options.simulate = true;
-        } else if (arg == "--model5200a") {
-            options.preferModelA = true;
+        } else if (arg == "--debug") {
+            options.debug = true;
         } else if (arg == "--port" && i + 1 < argc) {
             options.port = (uint16_t)std::stoi(argv[++i]);
         } else if (arg == "--firmware-dir" && i + 1 < argc) {
@@ -73,7 +72,7 @@ bool parseArgs(int argc, char **argv, Options &options) {
 std::unique_ptr<USBDevice> openRealDevice(libusb_context *ctx, const Options &options) {
     Dso5200::ModelIdentity identity;
     bool needsFirmware = false;
-    libusb_device *raw = Dso5200::findDevice(ctx, options.preferModelA, identity, needsFirmware);
+    libusb_device *raw = Dso5200::findDevice(ctx, identity, needsFirmware);
     if (!raw) {
         std::cerr << "No se encontro ningun DSO-5200/5200A conectado.\n";
         return nullptr;
@@ -93,7 +92,7 @@ std::unique_ptr<USBDevice> openRealDevice(libusb_context *ctx, const Options &op
         std::cout << "Firmware cargado, esperando a que el dispositivo se reconecte...\n";
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        raw = Dso5200::findDevice(ctx, options.preferModelA, identity, needsFirmware);
+        raw = Dso5200::findDevice(ctx, identity, needsFirmware);
         if (!raw || needsFirmware) {
             if (raw) libusb_unref_device(raw);
             std::cerr << "El dispositivo no reaparecio con firmware tras la carga.\n";
@@ -137,7 +136,7 @@ int main(int argc, char **argv) {
             libusb_exit(ctx);
             return 1;
         }
-        source = std::make_unique<Dso5200Control>(usbDevice.get());
+        source = std::make_unique<Dso5200Control>(usbDevice.get(), options.debug);
     }
 
     SampleServer server(options.port);

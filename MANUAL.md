@@ -12,7 +12,7 @@ cd dso5200basic
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 
-sudo cp 99-dso5200.rules /etc/udev/rules.d/
+sudo cp 60-dso5200.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
@@ -55,9 +55,14 @@ se conecta):
 
 | Estado | Vendor:Product | Notas |
 |---|---|---|
-| Recién conectado, sin firmware | `04b4:5200` | Igual para DSO-5200 y DSO-5200A, no se pueden distinguir en este estado |
+| Sin firmware (DSO-5200) | `04b4:5200` | |
+| Sin firmware (DSO-5200A) | `04b4:520a` | |
 | Con firmware cargado (DSO-5200) | `04b5:5200` | |
 | Con firmware cargado (DSO-5200A) | `04b5:520a` | |
+
+El product ID (`5200` vs `520a`) ya identifica la variante en ambos estados —
+solo cambia el vendor ID al cargar firmware. `dso5200basic` detecta esto
+automáticamente, no hace falta indicar la variante a mano.
 
 Si `lsusb` no muestra ninguno de estos IDs, el sistema operativo no está
 viendo el dispositivo — revisar cable/puerto, o probar en otra máquina/con
@@ -88,14 +93,6 @@ Flujo esperado:
    ```
 3. Quedás en el prompt interactivo (`>`) listo para recibir comandos.
 
-Si tu osciloscopio es un DSO-5200A y "Conectado a DSO-5200" no es correcto
-(por ejemplo si nunca tuvo firmware y por eso no se pudo distinguir la
-variante), reiniciá con:
-
-```sh
-./build/dso5200basic --model5200a
-```
-
 ## 4. Problemas comunes
 
 **`No se encontro ningun DSO-5200/5200A conectado.`**
@@ -105,21 +102,39 @@ VID:PID coincida exactamente con la tabla de arriba (podría ser un clon con
 otro ID).
 
 **`No se pudo conectar al dispositivo: Access denied ...` (`LIBUSB_ERROR_ACCESS`)**
-Las reglas udev no están instaladas o no se recargaron. Repetí el paso 1, y
-confirmá con:
+Las reglas udev no están instaladas, no se recargaron, o el dispositivo no
+recibió el evento `add` después de instalarlas (reconectá el cable). Para
+confirmar si el permiso está realmente aplicado (no alcanza con que la regla
+"exista", tiene que haber otorgado el ACL):
 ```sh
-udevadm info -a -n $(readlink -f /dev/bus/usb/*/* ) 2>/dev/null | grep -i 04b
+# reemplazá bus/dispositivo por los que muestre lsusb
+getfacl /dev/bus/usb/<bus>/<dispositivo>
 ```
-o simplemente reconectá el cable después de instalar las reglas.
+Si no aparece una línea `user:tu_usuario:rw-`, el ACL no se aplicó. Una causa
+frecuente en sistemas systemd/Manjaro: el archivo de reglas debe tener un
+número de archivo **menor a 73** (por ejemplo `60-dso5200.rules`, no
+`99-dso5200.rules`) — `/usr/lib/udev/rules.d/73-seat-late.rules` es el que
+convierte la etiqueta `uaccess` en un ACL real, y sólo ve la etiqueta si tu
+regla ya corrió antes que él (las reglas se procesan en orden numérico de
+archivo). Confirmá el número con `ls /etc/udev/rules.d/`, corregilo si hace
+falta, y reconectá el cable.
 
 **El firmware se sube pero el dispositivo no reaparece**
 Puede ser un problema de alimentación USB (algunos hubs no dan suficiente
 corriente) o de cable de mala calidad para transferencias de alta velocidad.
 Probá conectando directo a un puerto USB del equipo, sin hub.
 
-**Quiero ver los bytes crudos que se están mandando/recibiendo**
-No hay un flag de esto todavía; para depurar a ese nivel hay que agregar
-logging temporal en `src/device/dso5200.cpp` (`bulkCommand`, `getSamples`).
+**Quiero ver qué está pasando a nivel de protocolo (captureState, muestras)**
+Corré con `./build/dso5200basic --debug`: traza a stderr cada transición de
+`captureState` y cuántos bytes/muestras trae cada captura. Útil para
+diagnosticar un osciloscopio que parece "colgado" sin capturar nada.
+
+**El osciloscopio conecta pero `start` nunca produce datos / se queda "pegado"**
+Sin nada conectado a la punta del canal de disparo (CH1 por defecto), puede
+tardar en disparar por primera vez, pero no debería quedarse colgado
+indefinidamente — `dso5200basic` fuerza el disparo automáticamente al cabo de
+unos ciclos. Si aun así no ves frames, corré con `--debug` y fijate si
+`captureState` queda fijo en `1` (CAPTURE_SAMPLING) sin volver a cambiar.
 
 ## 5. Uso normal
 
