@@ -379,6 +379,24 @@ directamente con el Bloque 5.
 > periódicamente si no hay disparo) resultó no cumplirse siempre en la
 > práctica.
 
+> **Segundo caso real: fuente de disparo mal configurada por omisión**. Este
+> port nunca llamaba al equivalente de `HantekDsoControl::setTriggerSource()`
+> — dejaba el campo `ETsrBits.triggerSource` en su valor por defecto (0). En
+> el protocolo del DSO-5200 ese campo usa un mapeo invertido
+> (`1 - hardwareID`, ver el código original), así que el valor 0 en realidad
+> le dice al hardware "el disparo es sobre CH2", no CH1. Con una señal real
+> conectada sólo a CH1, el comparador de disparo nunca veía un flanco que
+> calificara — el osciloscopio caía siempre en disparo forzado, produciendo
+> una imagen inestable, con casi todas las capturas mostrando la señal
+> "plana" (dentro de un mismo semiciclo) en vez de un flanco real. Se detectó
+> comparando estadísticas de muchas capturas (¿cuántas mostraban una
+> transición real vs. una señal plana?) contra el valor esperado, y se
+> confirmó agregando trazas de `--debug` a `doSetTriggerLevel()`. Es un buen
+> ejemplo de por qué "no llamar a una función" puede ser un bug tan real como
+> llamarla mal: la función `setTriggerSource()` de upstream nunca se portó
+> a esta herramienta porque la fuente de disparo se asumió "fija en CH1" y
+> se dio por hecho que el valor por defecto del protocolo ya reflejaba eso.
+
 ### Para comprobar que lo entendiste
 
 - Si pedís `volts 1 0.5` (0.5 V/div) por CLI, ¿qué escalón real termina

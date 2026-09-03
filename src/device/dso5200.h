@@ -39,6 +39,7 @@ class Dso5200Control : public IDsoSource {
     bool setVoltsPerDiv(int channel, double voltsPerDiv) override;
     bool setChannelEnabled(int channel, bool enabled) override;
     bool setTriggerSlope(TriggerSlope slope) override;
+    bool setTriggerLevel(double volts) override;
 
     std::string statusText() const override;
 

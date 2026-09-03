@@ -40,6 +40,16 @@ const unsigned short Dso5200Control::kVoltageLimit[9] = {368, 454, 908, 368, 454
 Dso5200Control::Dso5200Control(USBDevice *device, bool debugLog) : device(device), debugLog(debugLog) {
     retrieveChannelLevelData();
 
+    // Fix for a real bug found testing against hardware: the DSO-5200's ETsrBits.triggerSource
+    // field uses an inverted channel mapping (ported from HantekDsoControl::setTriggerSource(),
+    // which computes `1 - hardwareID`). Left at its zero-initialized default, the trigger
+    // comparator ends up watching CH2 instead of CH1 - it would never see a real edge on the
+    // signal connected to CH1, so the tool always fell back to force-triggering (unstable
+    // display). trigger.source is fixed to channel 0 (CH1) in this tool, so this only needs
+    // setting once, here.
+    triggerCommand.setTriggerSource((uint8_t)(1 - trigger.source));
+    bulkCommand(triggerCommand);
+
     doSetChannelUsed(0, true);
     doSetChannelUsed(1, true);
     doSetGain(0, kGain[voltage[0].gain].voltsPerDiv);
@@ -97,6 +107,11 @@ bool Dso5200Control::setTriggerSlope(TriggerSlope slope) {
     return doSetTriggerSlopeInternal(slope == TriggerSlope::Rising ? 0 : 1);
 }
 
+bool Dso5200Control::setTriggerLevel(double volts) {
+    std::lock_guard<std::mutex> lock(ioMutex);
+    return doSetTriggerLevel(trigger.source, volts);
+}
+
 std::string Dso5200Control::statusText() const {
     std::ostringstream oss;
     oss.setf(std::ios::fixed);
@@ -105,7 +120,8 @@ std::string Dso5200Control::statusText() const {
         << " fastRate=" << (fastRateActive ? "yes" : "no") << " ch1=" << (voltage[0].used ? "on" : "off") << "@"
         << kGain[voltage[0].gain].voltsPerDiv << "V/div"
         << " ch2=" << (voltage[1].used ? "on" : "off") << "@" << kGain[voltage[1].gain].voltsPerDiv << "V/div"
-        << " slope=" << (trigger.slope == 0 ? "rising" : "falling");
+        << " slope=" << (trigger.slope == 0 ? "rising" : "falling")
+        << " triggerLevel=" << trigger.level[trigger.source] << "V(ch" << (trigger.source + 1) << ")";
     std::lock_guard<std::mutex> lock(statusMutex);
     if (!lastError.empty()) oss << " lastError=\"" << lastError << "\"";
     return oss.str();
@@ -234,9 +250,17 @@ bool Dso5200Control::doSetTriggerLevel(unsigned channel, double level) {
         (unsigned short)(((offsetReal + level / gainStep) * (maximum - minimum) + 0.5) + minimum);
     levelValue = std::clamp(levelValue, minimum, maximum);
 
+    if (debugLog) {
+        std::cerr << "[dso5200] doSetTriggerLevel(ch=" << channel << ", level=" << level
+                  << "V): gain=" << voltage[channel].gain << " gainStep=" << gainStep
+                  << " offsetReal=" << offsetReal << " minimum=" << minimum << " maximum=" << maximum
+                  << " -> levelValue=" << levelValue << " (trigger.source=" << trigger.source << ")\n";
+    }
+
     if (channel == trigger.source) {
         offsetCommand.setTrigger(levelValue);
-        device->controlWrite(&offsetCommand);
+        int rc = device->controlWrite(&offsetCommand);
+        if (debugLog) std::cerr << "[dso5200] controlWrite(offsetCommand) -> " << rc << "\n";
     }
     return true;
 }
@@ -433,6 +457,11 @@ void Dso5200Control::threadMain() {
             unsigned triggerPoint;
             std::tie(captureState, triggerPoint) = getCaptureState();
             trigger.point = calculateTriggerPoint(triggerPoint);
+
+            if (debugLog && captureState == CAPTURE_READY5200) {
+                std::cerr << "[dso5200] raw triggerPoint=" << triggerPoint << " -> trigger.point=" << trigger.point
+                          << " (bufferPosition would start at " << trigger.point * 2 << ")\n";
+            }
 
             if (debugLog && captureState != previousState) {
                 std::cerr << "[dso5200] captureState " << previousState << " -> " << captureState

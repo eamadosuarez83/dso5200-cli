@@ -58,6 +58,7 @@ Comandos interactivos (se escriben en la terminal donde corre `dso5200basic`):
 | `volts <1\|2> <V/div>` | Volts/división del canal (ej. `volts 1 0.5`) |
 | `channel <1\|2\|both\|none>` | Selector de canal(es) activo(s) |
 | `slope <rising\|falling>` | Pendiente de disparo |
+| `trigger <volts>` | Nivel de disparo en volts, sobre CH1 (ej. `trigger 1.0`) |
 | `start` / `stop` | Inicia/detiene el muestreo |
 | `status` | Estado actual |
 | `help` | Ayuda |
@@ -127,6 +128,46 @@ pila muestra `QMessageLogger::fatal` disparado desde el manejo interno de un
 a nivel de la librería Qt, no una excepción). Se corrigió forzando el backend
 `TkAgg` al principio del script (evita PyQt6 por completo), verificado con
 una sesión real de 95+ segundos sin caídas.
+
+**Fuente del disparo apuntaba al canal equivocado**: `ETsrBits.triggerSource`
+usa un mapeo de canal invertido (`1 - hardwareID`, tal como hace
+`HantekDsoControl::setTriggerSource()` en OpenHantek). Al dejarlo en su valor
+por defecto (0) nunca se llamaba a esa función, así que el comparador de
+disparo quedaba mirando CH2 en vez de CH1 — con una señal real conectada
+sólo a CH1, nunca había flanco que calificara y el osciloscopio caía siempre
+en disparo forzado (pantalla inestable). Corregido fijando
+`triggerCommand.setTriggerSource(1)` una vez en el constructor de
+`Dso5200Control` (la fuente de disparo es siempre CH1 en esta herramienta).
+Verificado: tras el fix, el disparo real engancha en el primer o segundo
+ciclo de sondeo en el 100% de las capturas con una señal de prueba conectada,
+en vez de caer siempre en el disparo forzado del ciclo 9.
+
+## Función de disparo (nivel/pendiente) y limitación conocida
+
+Se agregó el comando `trigger <volts>` (ver tabla de comandos abajo), que
+llama a `Dso5200Control::setTriggerLevel()` → `doSetTriggerLevel()` (ya
+portado de `HantekDsoControl::setTriggerLevel()`, pero hasta ahora sin nada
+en la CLI que lo invocara). Junto con el fix de fuente de disparo de arriba,
+esto permite que el disparo real (no forzado) enganche de forma consistente
+sobre una señal periódica.
+
+**Limitación conocida**: aunque el disparo real ahora engancha rápido y de
+forma confiable (confirmado con `--debug`: transición a `CAPTURE_READY5200`
+en el ciclo 1-2 de sondeo, no en el ciclo 9 del disparo forzado), la
+posición horizontal del flanco dentro de cada captura todavía **no queda
+perfectamente fija** de una captura a la siguiente — se investigó con
+trazas de `--debug` mostrando el `triggerPoint` crudo devuelto por el
+hardware junto con la posición de flanco detectada en cada frame, y no hay
+una correlación simple entre ambos que explique el desalineamiento. El
+`triggerPoint` crudo varía ampliamente entre capturas (esperable: refleja
+cuántas muestras habían entrado al buffer circular antes de que ocurriera el
+disparo), pero el re-indexado del buffer circular
+(`bufferPosition = trigger.point * 2` en `convertRawDataToSamples()`) no
+está compensando esa variación tan bien como debería. Es una investigación
+de protocolo más profunda que queda pendiente — mientras tanto, la señal se
+ve dramáticamente más estable que antes del fix (el disparo real sí queda
+enganchado, sólo falta afinar la alineación horizontal exacta), aunque no
+perfectamente estática como un osciloscopio comercial.
 
 ## Protocolo de streaming hacia el visor
 

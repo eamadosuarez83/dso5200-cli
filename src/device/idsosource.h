@@ -23,6 +23,8 @@ class IDsoSource {
     virtual bool setVoltsPerDiv(int channel, double voltsPerDiv) = 0;
     virtual bool setChannelEnabled(int channel, bool enabled) = 0;
     virtual bool setTriggerSlope(TriggerSlope slope) = 0;
+    /// Sets the trigger level, in volts, on the (fixed) trigger source channel.
+    virtual bool setTriggerLevel(double volts) = 0;
 
     virtual std::string statusText() const = 0;
 

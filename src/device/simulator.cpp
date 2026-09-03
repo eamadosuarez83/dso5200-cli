@@ -48,6 +48,14 @@ bool Simulator::setTriggerSlope(TriggerSlope slopeValue) {
     return true;
 }
 
+bool Simulator::setTriggerLevel(double volts) {
+    // The simulated waveform always starts each frame at a fixed phase, so it's
+    // already stable on screen; this just tracks the value for status/testing purposes.
+    std::lock_guard<std::mutex> lock(mutex);
+    triggerLevel = volts;
+    return true;
+}
+
 std::string Simulator::statusText() const {
     std::lock_guard<std::mutex> lock(mutex);
     std::ostringstream oss;
@@ -56,7 +64,8 @@ std::string Simulator::statusText() const {
     oss << "[SIMULATED] sampling=" << (sampling.load() ? "on" : "off") << " timebase=" << secondsPerScreen << "s"
         << " ch1=" << (channelEnabled[0] ? "on" : "off") << "@" << voltsPerDiv[0] << "V/div"
         << " ch2=" << (channelEnabled[1] ? "on" : "off") << "@" << voltsPerDiv[1] << "V/div"
-        << " slope=" << (slope == TriggerSlope::Rising ? "rising" : "falling");
+        << " slope=" << (slope == TriggerSlope::Rising ? "rising" : "falling")
+        << " triggerLevel=" << triggerLevel << "V";
     return oss.str();
 }
 

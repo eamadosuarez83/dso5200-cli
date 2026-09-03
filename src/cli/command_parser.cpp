@@ -78,6 +78,7 @@ void printHelp() {
               << "  volts <1|2> <V/div>            Ajusta volts/division del canal (ej: volts 1 0.5)\n"
               << "  channel <1|2|both|none>        Activa/desactiva canales\n"
               << "  slope <rising|falling>         Pendiente de disparo\n"
+              << "  trigger <volts>                Nivel de disparo en volts (ej: trigger 1.0)\n"
               << "  start                          Inicia el muestreo\n"
               << "  stop                           Detiene el muestreo\n"
               << "  status                         Muestra el estado actual\n"
@@ -152,6 +153,17 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
         }
         source.setTriggerSlope(tokens[1] == "rising" ? TriggerSlope::Rising : TriggerSlope::Falling);
         std::cout << "Pendiente de disparo: " << tokens[1] << "\n";
+    } else if (cmd == "trigger") {
+        if (tokens.size() != 2) {
+            std::cout << "Uso: trigger <volts>\n";
+            return;
+        }
+        auto volts = parseNumber(tokens[1]);
+        if (!volts || !source.setTriggerLevel(*volts)) {
+            std::cout << "Valor de trigger invalido: " << tokens[1] << "\n";
+            return;
+        }
+        std::cout << "Nivel de disparo ajustado a " << tokens[1] << " V.\n";
     } else {
         std::cout << "Comando desconocido: " << cmd << " (escribe 'help')\n";
     }

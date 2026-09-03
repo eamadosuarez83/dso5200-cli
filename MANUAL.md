@@ -175,6 +175,7 @@ Comandos en la terminal de `dso5200basic`:
 | `volts <1\|2> <V/div>` | Volts/división del canal, ej. `volts 1 0.5` |
 | `channel <1\|2\|both\|none>` | Selector de canal(es) activo(s) |
 | `slope <rising\|falling>` | Pendiente de disparo |
+| `trigger <volts>` | Nivel de disparo en volts, sobre CH1 (ej. `trigger 1.0`) |
 | `status` | Estado actual (samplerate, canales, ganancia, pendiente) |
 | `help` | Ayuda |
 | `quit` | Salir (cierra la conexión USB y el servidor) |
@@ -191,6 +192,39 @@ Timebase ajustado a 500us de pantalla.
 > status
 sampling=on samplerate=20.480MS/s fastRate=no ch1=on@0.20V/div ch2=on@4.00V/div slope=rising
 ```
+
+### Ajustar el nivel de disparo para estabilizar la señal
+
+La fuente de disparo es siempre CH1. Para que el disparo enganche sobre un
+flanco real (en vez de caer en disparo forzado, que produce una imagen
+inestable):
+
+1. Conectá la señal a CH1 y arrancá el muestreo (`start`).
+2. Corré con `--debug` y mirá unos frames — o simplemente observá el visor —
+   para estimar entre qué valores oscila la señal (el calibrado de voltaje
+   de este puerto es aproximado, heredado de OpenHantek; no asumas que el
+   valor nominal de tu generador coincide exactamente con lo que se lee acá).
+3. Ajustá `trigger <volts>` a un valor **entre el mínimo y el máximo reales**
+   de la señal (idealmente cerca del punto medio). Un nivel fuera de ese
+   rango nunca va a calificar un flanco real.
+4. Usá `slope rising` o `slope falling` según qué flanco quieras que dispare.
+
+Ejemplo con una señal cuadrada que en la práctica osciló entre 0 V y 0.9 V:
+
+```
+> trigger 0.45
+Nivel de disparo ajustado a 0.45 V.
+```
+
+Con el disparo bien configurado, el osciloscopio debería enganchar un flanco
+real casi de inmediato (visible con `--debug`: la transición a
+`CAPTURE_READY5200` ocurre en el ciclo 1-2 de sondeo, no en el ciclo 9 del
+disparo forzado). **Limitación conocida**: incluso con el disparo enganchando
+sobre un flanco real, la posición horizontal exacta del flanco en pantalla
+todavía puede variar levemente entre capturas — ver "Función de disparo... y
+limitación conocida" en el README para el detalle técnico. La señal se ve
+mucho más estable que sin este fix, pero no perfectamente fija como en un
+osciloscopio comercial.
 
 ## 6. Probar sin hardware (modo simulado)
 
