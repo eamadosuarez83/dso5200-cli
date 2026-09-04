@@ -489,74 +489,88 @@ directamente con el Bloque 5.
 > tomárselo en serio — y el historial de git de proyectos hermanos puede
 > tener el fix exacto que el refactor posterior perdió sin querer.
 
-> **Quinto caso real: la posición de pre-disparo se mandaba en las unidades
-> equivocadas**. Con `timebase` y los escalones de ganancia ya arreglados,
-> seguía apareciendo un síntoma distinto: capturando una señal cuadrada
+> **Quinto caso real: dos bugs de unidades en la posición de pre-disparo, y
+> el registro `fast` de la tabla de timebase estaba mal para 11 de 12
+> entradas**. Con `timebase` y los escalones de ganancia ya arreglados,
+> seguía apareciendo un síntoma grave: capturando una señal cuadrada
 > conocida (generador externo *y* la salida CAL interna del propio equipo,
 > para descartar el generador como variable) el buffer mostraba **un único
 > flanco aislado, seguido de una meseta plana** hasta el final de la
-> ventana — nunca los varios ciclos que debía haber. `doSetPretriggerPosition()`
-> calculaba `positionSamples = position * samplerateCurrent`, tratando
-> `position` como si ya fuera un desplazamiento en *segundos* — pero
-> `trigger.position` en este port está declarado y usado en todas partes
-> como una fracción `0..1` de pantalla, nunca convertida. El propio código de
-> OpenHantek hace exactamente esa conversión, pero en la capa de arriba (la
-> GUI, `main.cpp`: `position * horizontal.timebase * DIVS_TIME`) antes de
-> llamar a la función equivalente — conversión que este port nunca portó.
-> Con `position = 0.0` (el valor por omisión) el error queda enmascarado
-> (`0.0` multiplicado por cualquier cosa sigue dando `0`), pero el valor por
-> omisión en sí ya estaba mal: producía `TriggerPositionPre = 0xD7FF`,
-> `TriggerPositionPost = 0xFFFF` — este último **por fuera del rango
-> documentado en `bulkcode.h`** (`0xd7ff` a `0xfffe`, un desborde de 1). Capturando
-> con Wireshark/USBPcap el tráfico USB real del software oficial de Windows
-> contra la misma señal se confirmó que su valor por omisión real es
-> `TriggerPositionPre = TriggerPositionPost = 0xEBFF` (disparo centrado al
-> 50%, no pegado al 0%). El fix: multiplicar directamente por el
-> **largo del registro** (`position * recordLength`, dimensionalmente
-> equivalente a la conversión de OpenHantek una vez que se cancelan
-> `timebase * DIVS_TIME / samplerate = recordLength`) y cambiar el valor por
-> omisión de `trigger.position` a `0.5`. Con eso, `dso5200basic` genera
-> exactamente `0xEBFF`/`0xEBFF` — bit a bit igual al software real — y el
-> split de la captura pasó de ~99.9 %/0.1 % (casi todo en un solo nivel) a
-> ~50/50 (un flanco limpio, justo centrado). **Esto es una mejora real y
-> confirmada, pero no resuelve el síntoma completo**: incluso con el valor
-> correcto, cada captura sigue mostrando un único flanco en vez de varios
-> ciclos, y esto se confirmó **idéntico en las 12 entradas de
-> `kSlowTimebaseTable`** (246 us a 1.64 s) — la forma no cambia con la
-> ventana pedida, sólo cambia la etiqueta de tiempo en el eje X.
+> ventana — nunca los varios ciclos que debía haber, y esto se confirmó
+> **idéntico en las 12 entradas de `kSlowTimebaseTable`** (246 us a 1.64 s):
+> la forma no cambiaba con la ventana pedida, sólo la etiqueta de tiempo del
+> eje X.
 >
-> La pista definitiva salió de medir **tiempo real de reloj, no el que
-> reportamos**: pidiendo la ventana más lenta (1.638 s) y midiendo desde el
-> comando `start` hasta que llega el primer dato (usando el timestamp que ya
-> trae cada frame), el dato estuvo listo en **0.435 s** - menos de un
-> tercio de lo físicamente posible si el ADC muestreara continuo a la tasa
-> lenta configurada durante los 10240 puntos del registro. Repitiendo la
-> misma medición sobre la captura USB del software oficial de Windows, para
-> un ajuste equivalente (~0.33 s de ventana reclamada): su tiempo real
-> promedio fue **0.309 s** - prácticamente igual a lo reclamado. Es decir,
-> el software real sí respeta el tiempo físico; el nuestro no. Para
-> descartar que sea "leemos demasiado pronto" se forzó una espera artificial
-> (más larga que toda la ventana reclamada) entre ver `READY5200` y llamar a
-> `getSamples()`: el contenido no cambió en absoluto, confirmando que el
-> dispositivo ya había terminado y congelado su buffer mucho antes,
-> independientemente de cuándo se le pida leerlo después.
+> **Primer bug (unidades, x2)**: `doSetPretriggerPosition()` calculaba
+> `positionSamples = position * samplerateCurrent`, tratando `position` como
+> si ya fuera un desplazamiento en segundos — pero `trigger.position` en
+> este port está declarado y usado como una fracción `0..1` de pantalla,
+> nunca convertida. El mismo error exacto estaba también en el cálculo de
+> `startCycle` (`trigger.position * 1000.0 / cycleTimeMs`) dentro de
+> `threadMain()`. El propio OpenHantek hace la conversión fracción→segundos
+> en la capa de arriba (la GUI, `main.cpp`: `position * horizontal.timebase
+> * DIVS_TIME`) antes de llamar a las funciones equivalentes — conversión
+> que este port nunca portó, en ninguno de los dos sitios. Con
+> `position = 0.0` (el valor por omisión) el primer error queda enmascarado
+> (`0.0 * cualquier_cosa = 0`), pero ya producía `TriggerPositionPre =
+> 0xD7FF`, `TriggerPositionPost = 0xFFFF` (este último fuera del rango
+> documentado en `bulkcode.h`, un desborde de 1) en vez del `0xEBFF/0xEBFF`
+> real (disparo centrado al 50%, confirmado byte a byte contra una captura
+> USB del software oficial de Windows). El segundo error (`startCycle`) era
+> peor en la práctica: para timebases rápidos daba un `startCycle` enorme
+> (51 ciclos de sondeo — más de medio segundo real — antes de siquiera
+> armar el disparo, para una ventana reclamada de sólo 8 ms). Arreglar
+> ambos (multiplicar por `recordLength`, o por el largo de ventana en ms
+> según corresponda, en vez de tratar la fracción como segundos) mejoró la
+> captura de ~99.9%/0.1% (casi todo en un solo nivel) a ~50/50 — una mejora
+> real, pero **no resolvió el síntoma completo**: seguía siendo un único
+> flanco, no varios ciclos.
 >
-> Con esto se descartaron, uno por uno, todos los candidatos de
-> configuración: los valores de `SamplerateSlow`/`SamplerateFast` (idénticos
-> a Windows, verificado con `usbmon`), la posición de pre-disparo (ya
-> corregida, idéntica a Windows), y los campos de `ETsrBits` - fuente de
-> disparo, canales usados, pendiente - (también idénticos a Windows, byte a
-> byte). **Investigación en curso**: lo que queda como sospechoso es la
-> secuencia de comandos `ENABLETRIGGER`/`FORCETRIGGER` de `threadMain()`
-> (Bloque 4) - algo en cómo se arma/reintenta el disparo parece hacer que el
-> dispositivo dé por terminado el barrido antes de tiempo, en vez de
-> sostenerlo el tiempo real pedido.
+> **La pista definitiva** salió de medir tiempo real de reloj en vez de
+> confiar en lo que el software reporta de sí mismo: pidiendo la ventana más
+> lenta (1.638 s) y midiendo desde `start` hasta el primer dato (con el
+> timestamp que ya trae cada frame), el dato llegó en 0.435 s — menos de un
+> tercio de lo físicamente posible. Repitiendo la misma medición sobre la
+> captura USB real del software de Windows, en un ajuste equivalente (~0.33s
+> reclamados): su tiempo real promedio fue 0.309 s, casi idéntico. El
+> software real sí respeta el tiempo físico; el nuestro no — así que el
+> problema tenía que estar en los *valores* que hacen que el dispositivo
+> realmente muestree despacio, no en el estado de disparo.
+>
+> **El bug real**: replicando a mano, byte a byte y con los mismos tiempos
+> de espera, la secuencia USB completa de una captura lenta de Windows
+> (usando `pyusb` directo, sin pasar por este proyecto en absoluto) sí
+> produjo una onda periódica real — 412 ciclos limpios donde nuestro propio
+> software daba uno solo. La diferencia: Windows usaba
+> `SamplerateSlow=0xF825, SamplerateFast=0x02` para ese ajuste; la entrada
+> equivalente de nuestra tabla era `SamplerateSlow=0xFFCE, SamplerateFast=
+> 0x04`. **Ambos pares dan exactamente el mismo divisor** por la fórmula
+> documentada (`divider = 2·(0x10000−slow) + 4−fast`) — 100, en ese caso —
+> así que parecían intercambiables, y por eso se habían dado por buenos
+> (cruzados contra sigrok y HantekDSO, que también usan `fast=4`: el bug no
+> es de esos proyectos, es que ninguno de los dos parece haber probado el
+> DSO-5200 real a fondo en timebases lentos). **El hardware real no es
+> indiferente a qué par le mandás aunque el divisor matemático sea idéntico**.
+> Sustituyendo la entrada de la tabla por el par exacto de Windows, a través
+> de todo el pipeline C++ normal (con nuestra propia configuración de
+> ganancia/relés/offset, sin tocar nada más), la captura pasó a mostrar 413
+> ciclos reales. La regla general resultó ser simple: `fast=2` en vez de
+> `fast=4`, con `slow` un valor más alto (`slow_correcto = slow_viejo + 1`,
+> consecuencia directa de la fórmula del divisor). Se corrigieron las 12
+> entradas de la tabla con esa regla y se verificaron las 12 contra el
+> generador real: el número de ciclos capturados ahora escala
+> proporcionalmente con la ventana pedida (1, 2, 2, 2, 6, 12, 35, 74, 106,
+> 304, 1002/1024 ciclos de 246 us a 819 ms) — exactamente lo esperado para
+> una señal de 1 kHz.
+>
 > Moraleja: un valor por omisión de `0.0` puede esconder un bug de unidades
 > durante meses porque `0 * cualquier_unidad = 0` — probalo con un valor
-> distinto de cero apenas sospeches algo así, aunque el CLI todavía no
-> exponga ese parámetro al usuario. Y cuando algo "debería tardar X" y no
-> cuadra, medí el tiempo de reloj real en vez de confiar en los valores que
-> el propio software reporta sobre sí mismo.
+> distinto de cero apenas sospeches algo así. Cuando algo "debería tardar X"
+> y no cuadra, medí el tiempo de reloj real en vez de confiar en lo que el
+> propio software reporta de sí mismo. Y cuando dos configuraciones dan el
+> mismo resultado en una fórmula documentada, no asumas que el hardware las
+> trata igual — replicá la de la referencia que sabés que funciona, byte a
+> byte, antes de confiar en tu propia derivación "equivalente".
 
 ### Para comprobar que lo entendiste
 

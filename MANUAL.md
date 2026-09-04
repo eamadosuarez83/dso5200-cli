@@ -164,16 +164,14 @@ ventanas de captura genuinamente distintas. Ver "Timebase — resuelto" en el
 README para el detalle técnico.
 
 **Cada captura muestra un solo flanco y después queda plana el resto de la ventana**
-Bug real, parcialmente corregido: la posición de pre-disparo se mandaba en
-unidades equivocadas (ver "Posición de pre-disparo" en el README). El fix
-mejoró la proporción de la captura que muestra el nivel bajo de la señal
-(de ~0.1 % a ~50 %), pero el síntoma completo — un solo flanco en vez de
-varios ciclos periódicos — sigue sin resolverse, confirmado igual en las 12
-bases de tiempo programadas. Medido con reloj real: el dispositivo dice
-"listo" mucho antes de lo físicamente posible (0.435s reales para una
-ventana pedida de 1.638s), mientras que el software oficial de Windows sí
-respeta el tiempo físico (0.309s reales para ~0.33s pedidos). Si lo estás
-viendo, no es tu configuración; es una investigación en curso.
+Era un bug real — ya está corregido. La causa final: la tabla interna de
+timebase mandaba `SamplerateFast=4` en 11 de sus 12 entradas, cuando el
+hardware real (confirmado replicando a mano la captura USB del software
+oficial de Windows) necesita `SamplerateFast=2`. Ambos valores dan
+matemáticamente el mismo divisor de samplerate, pero el hardware real no
+los trata igual. Si lo ves en una copia vieja del repo, actualizá
+`src/device/dso5200.cpp` (ver "Timebase lento sólo capturaba un flanco" en
+el README para el detalle técnico completo).
 
 ## 5. Uso normal
 

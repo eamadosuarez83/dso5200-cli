@@ -88,11 +88,13 @@ bloqueo del osciloscopio en modo simulación de disparo automático sin señal
 conectada, un crash del visor Python (backend Qt de matplotlib abortando
 el proceso en sesiones largas, confirmado con `coredumpctl`), `timebase` sin
 efecto real sobre la ventana de captura, los escalones de ganancia 1.6V/div
-y 16V/div dejando el canal en cero plano, y la posición de pre-disparo
-mandándose en unidades equivocadas (ver "Posición de pre-disparo" abajo —
-**este último caso sigue con un síntoma abierto**: la fracción de captura
-mejoró de ~99.9 %/0.1 % a ~50/50, pero cada frame sigue mostrando un único
-flanco en vez de varios ciclos de la señal).
+y 16V/div dejando el canal en cero plano, dos bugs de unidades en la
+posición de pre-disparo, y — el más grave — el registro `fast` de la tabla
+de timebase estando mal para 11 de sus 12 entradas, lo que hacía que
+cualquier captura, a cualquier velocidad, sólo mostrara un flanco en vez de
+la señal periódica completa (ver "Timebase lento sólo capturaba un flanco"
+abajo para el detalle completo, incluyendo cómo se encontró replicando a
+mano la captura USB del software oficial de Windows).
 
 Para depurar a bajo nivel (ver transiciones de `captureState` y conteo de
 muestras en tiempo real), usá `./build/dso5200basic --debug`.
@@ -247,76 +249,79 @@ escenarios que reprodujeron el síntoma original: cambio de ganancia en
 pleno muestreo sobre CH1, sobre CH2, y ambos canales configurados a un
 escalón antes problemático desde antes de arrancar el muestreo.
 
-## Posición de pre-disparo — parcialmente resuelto, unidades equivocadas, síntoma completo sigue abierto
+## Timebase lento sólo capturaba un flanco — resuelto, el registro `fast` de la tabla estaba mal
 
 Con `timebase` y los escalones de ganancia ya arreglados, seguía apareciendo
-otro síntoma: capturando una señal cuadrada conocida (generador externo *y*
-la salida CAL interna del propio equipo, para descartar el generador como
-variable) el buffer mostraba **un único flanco aislado, seguido de una
+un síntoma grave: capturando una señal cuadrada conocida (generador externo
+*y* la salida CAL interna del propio equipo, para descartar el generador
+como variable) el buffer mostraba **un único flanco aislado, seguido de una
 meseta plana** hasta el final de la ventana — nunca los varios ciclos que
-debía haber, sin importar la base de tiempo (10 ms y 100 ms daban
-exactamente la misma forma).
+debía haber. Confirmado idéntico en las **12 entradas** de
+`kSlowTimebaseTable` (246 us a 1.64 s): la forma no cambiaba con la ventana
+pedida, sólo la etiqueta de tiempo del eje X.
+
+### Primer hallazgo (real, pero insuficiente): dos bugs de unidades en la posición de pre-disparo
 
 `Dso5200Control::doSetPretriggerPosition()` calculaba `positionSamples =
 position * samplerateCurrent`, tratando `position` como si ya fuera un
 desplazamiento en *segundos*. Pero `trigger.position` en este port está
 declarado y usado en todas partes como una fracción `0..1` de pantalla,
-nunca convertida a segundos antes de llegar ahí. El propio OpenHantek hace
-esa conversión, pero un nivel más arriba — en la GUI (`main.cpp`:
-`position * horizontal.timebase * DIVS_TIME`) — antes de llamar a la
-función equivalente; esa conversión nunca se portó.
+nunca convertida a segundos antes de llegar ahí. El mismo error exacto
+estaba también en `threadMain()`, en el cálculo de `startCycle`
+(`trigger.position * 1000.0 / cycleTimeMs`) — para timebases rápidos esto
+llegaba a esperar 51 ciclos de sondeo (más de medio segundo real) antes de
+siquiera armar el disparo, para una ventana reclamada de sólo 8 ms. El
+propio OpenHantek hace la conversión fracción→segundos un nivel más arriba
+— en la GUI (`main.cpp`: `position * horizontal.timebase * DIVS_TIME`) —
+antes de llamar a las funciones equivalentes; esa conversión nunca se
+portó, en ninguno de los dos sitios.
 
-Con el valor por omisión `position = 0.0` el bug queda enmascarado (`0.0`
-multiplicado por cualquier cosa sigue siendo `0`), pero el valor por
-omisión en sí ya estaba mal: producía `TriggerPositionPre = 0xD7FF`,
-`TriggerPositionPost = 0xFFFF` — este último **fuera del rango documentado**
-en `bulkcode.h` (`0xd7ff` a `0xfffe`, un desborde de 1). Capturando con
-Wireshark/USBPcap el tráfico USB real del software oficial de Windows
-contra la misma señal se confirmó su valor real por omisión:
-`TriggerPositionPre = TriggerPositionPost = 0xEBFF` (disparo centrado al
-50 %, no pegado al 0 %).
+Con el valor por omisión `position = 0.0` el primer bug queda enmascarado
+(`0.0 * cualquier_cosa = 0`), pero ya producía `TriggerPositionPre =
+0xD7FF`, `TriggerPositionPost = 0xFFFF` — este último **fuera del rango
+documentado** en `bulkcode.h` (`0xd7ff` a `0xfffe`, un desborde de 1) — en
+vez del valor real de Windows, `0xEBFF`/`0xEBFF` (disparo centrado al 50%,
+confirmado byte a byte con una captura USB del software oficial).
+Arreglando ambos (multiplicar por `recordLength` o por el largo de ventana
+en ms, según corresponda, en vez de tratar la fracción como segundos) la
+captura mejoró de ~99.9%/0.1% a ~50/50 — real, pero **no resolvió el
+síntoma completo**: seguía siendo un único flanco, no varios ciclos.
 
-El fix: multiplicar por el **largo del registro** en vez del samplerate
-(`position * recordLength` — dimensionalmente equivalente a la conversión
-de OpenHantek, una vez que se cancela `timebase * DIVS_TIME / samplerate =
-recordLength`), y cambiar el valor por omisión de `trigger.position` a
-`0.5`. Con eso, `dso5200basic` genera exactamente `0xEBFF`/`0xEBFF` — bit a
-bit igual al software real.
+### El bug real: el registro `fast` de la tabla de timebase estaba mal para 11 de 12 entradas
 
-**Resultado parcial**: la fracción de la captura que muestra el nivel
-"bajo" de la señal pasó de ~0.1 % (prácticamente nada) a ~50 % — una mejora
-real y medible. Pero **el síntoma completo sigue sin resolverse**: incluso
-con el valor de pre-disparo correcto, cada frame sigue mostrando un único
-flanco en vez de múltiples ciclos periódicos — confirmado idéntico en las
-**12 entradas** de `kSlowTimebaseTable` (246 us a 1.64 s), con el generador
-externo y con CAL. La forma no cambia con la ventana pedida; sólo cambia la
-etiqueta de tiempo del eje X.
+La pista definitiva salió de medir **tiempo real de reloj**, no el que el
+software reporta de sí mismo: pidiendo la ventana más lenta (1.638 s) y
+midiendo desde `start` hasta el primer dato (con el timestamp que ya trae
+cada frame), el dato llegó en **0.435 s** — menos de un tercio de lo
+físicamente posible. Repitiendo la misma medición sobre la captura USB real
+del software de Windows, en un ajuste equivalente (~0.33 s reclamados): su
+tiempo real promedio fue **0.309 s**, casi idéntico. El software real sí
+respeta el tiempo físico; el nuestro no.
 
-**La prueba definitiva** salió de medir tiempo real de reloj en vez de
-confiar en lo que el software reporta sobre sí mismo: pidiendo la ventana
-más lenta (1.638 s) y midiendo desde `start` hasta el primer dato (con el
-timestamp que ya trae cada frame), el dato llegó en **0.435 s** — menos de
-un tercio de lo físicamente posible para un ADC muestreando continuo esa
-ventana. Repitiendo la misma medición sobre la captura USB real del
-software oficial de Windows, en un ajuste equivalente (~0.33 s reclamados):
-su tiempo real promedio fue **0.309 s**, casi idéntico a lo reclamado. El
-software real sí respeta el tiempo físico de la captura; el nuestro no.
-Para descartar "leemos demasiado pronto" se forzó una espera artificial
-mayor que toda la ventana reclamada entre ver `READY5200` y llamar a
-`getSamples()` — el contenido no cambió nada, confirmando que el
-dispositivo ya había terminado y congelado su buffer mucho antes.
+Replicando a mano, byte a byte y con los mismos tiempos de espera, la
+secuencia USB completa de una captura lenta de Windows (con `pyusb`
+directo, sin pasar por este proyecto en absoluto) **sí produjo una onda
+periódica real** — 412 ciclos limpios donde nuestro software daba uno solo.
+La diferencia encontrada: Windows usaba `SamplerateSlow=0xF825,
+SamplerateFast=0x02` para ese ajuste; la entrada equivalente de nuestra
+tabla era `SamplerateSlow=0xFFCE, SamplerateFast=0x04`. **Ambos pares dan
+exactamente el mismo divisor** por la fórmula documentada (`divider =
+2·(0x10000−slow) + 4−fast` → 100 en los dos casos), por eso se habían dado
+por intercambiables (y por eso coincidían con sigrok y HantekDSO, que
+también usan `fast=4` — el bug no es de esos proyectos, es que ninguno
+parece haber probado a fondo el DSO-5200 real en timebases lentos).
+**El hardware real no es indiferente a qué par le mandás aunque el divisor
+matemático sea idéntico.**
 
-Con esto se descartaron, uno por uno, todos los valores de configuración
-como sospechosos: `SamplerateSlow`/`SamplerateFast` (idénticos a Windows,
-verificado con `usbmon`), la posición de pre-disparo (ya corregida,
-idéntica a Windows), y los campos de `ETsrBits` — fuente de disparo,
-canales usados, pendiente — (también idénticos a Windows, byte a byte).
-También se descartó que sea un bug de indexado de este port (leer el
-buffer crudo sin la rotación por `trigger.point` da el mismo resultado).
-Lo que queda como sospechoso, para la próxima sesión, es la secuencia de
-comandos `ENABLETRIGGER`/`FORCETRIGGER` de `threadMain()` — algo en cómo
-se arma/reintenta el disparo parece hacer que el dispositivo dé por
-terminado el barrido antes de tiempo.
+Sustituyendo la entrada de la tabla por el par exacto de Windows —a través
+de todo el pipeline C++ normal, sin tocar nada más— la captura pasó a
+mostrar 413 ciclos reales. La regla general: `fast=2` en vez de `fast=4`,
+con `slow` un valor más alto (`slow_correcto = slow_viejo + 1`, consecuencia
+directa de la fórmula del divisor). Se corrigieron las 12 entradas de la
+tabla con esa regla y se verificaron las 12 contra el generador real: el
+número de ciclos capturados ahora escala proporcionalmente con la ventana
+pedida (1, 2, 2, 2, 6, 12, 35, 74, 106, 304, 1002+ ciclos de 246 us a
+819 ms) — exactamente lo esperado para una señal de 1 kHz.
 
 ## Protocolo de streaming hacia el visor
 

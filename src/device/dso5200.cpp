@@ -34,7 +34,6 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
-#include <map>
 #include <sstream>
 
 #include "protocol/states.h"
@@ -63,9 +62,29 @@ struct TimebaseEntry {
 // need the *split* CSETTRIGGERORSAMPLERATE (0x0c, this table) + ESETTRIGGERORSAMPLERATE (0x0e,
 // triggerCommand) pair instead, which is what this code already sent. So the fix here is only
 // the register *values*, not the command framing.
+//
+// Second real bug found in these same values, much later, after the table above already produced
+// the *correct* samplerate/window metadata: the `fast` column was 4 for every entry but the
+// fastest (sigrok/HantekDSO both agree on that too - it's not those projects' fault, it turns out
+// their own test coverage for the DSO-5200 specifically at slow timebases was thin). Even though
+// `divider = 2*(0x10000-slow) + 4-fast` gives the mathematically identical divider whether you use
+// (fast=4, slow=X) or (fast=2, slow=X+1), the real hardware is NOT indifferent to which pair you
+// send - confirmed via a USB capture of the official Windows software, which always uses fast=2
+// (fast=3 only shows up for a divider so large that fast=2 can't represent it with an integral
+// slow value; this table's slowest entry doesn't reach that). Symptom with fast=4: capture state
+// still reported READY well under half of the claimed window's real time (confirmed by timing
+// wall-clock time from the `start` command to the first frame, not trusting the reported
+// samplerate), and the buffer read back showed exactly one transition edge instead of the
+// repeating cycles a periodic signal should produce - reproduced identically across all 12 entries
+// of this table, with both an external signal generator and the scope's own CAL output, and ruled
+// out as a buffer-rotation/indexing bug in this port by reading the raw device buffer without the
+// trigger.point-based rotation (same result). Switching every entry from (4, X) to (2, X+1) fixed
+// it completely: capture duration now scales properly with the requested window (a 1 kHz signal
+// produces roughly window_ms cycles per capture, verified from ~0.25ms up to 1.6s), confirmed
+// against both the external generator and CAL.
 constexpr TimebaseEntry kSlowTimebaseTable[] = {
-    {3, 0xFFFF}, {4, 0xFFFC}, {4, 0xFFF7}, {4, 0xFFE8}, {4, 0xFFCE}, {4, 0xFF9C},
-    {4, 0xFF07}, {4, 0xFE0D}, {4, 0xFC19}, {4, 0xF63D}, {4, 0xEC79}, {4, 0xD8F1},
+    {3, 0xFFFF}, {2, 0xFFFD}, {2, 0xFFF8}, {2, 0xFFE9}, {2, 0xFFCF}, {2, 0xFF9D},
+    {2, 0xFF08}, {2, 0xFE0E}, {2, 0xFC1A}, {2, 0xF63E}, {2, 0xEC7A}, {2, 0xD8F2},
 };
 constexpr unsigned kSlowTimebaseTableSize = sizeof(kSlowTimebaseTable) / sizeof(kSlowTimebaseTable[0]);
 }  // namespace
@@ -496,40 +515,6 @@ std::vector<unsigned char> Dso5200Control::getSamples(unsigned &previousSampleCo
         return {};
     }
     data.resize((size_t)received);
-
-    if (debugLog && !data.empty()) {
-        const size_t halfLen = data.size() / 2;
-        for (size_t parity = 0; parity < 2; ++parity) {
-            unsigned char loMin = 255, loMax = 0;
-            std::map<unsigned char, int> hist;
-            for (size_t i = parity; i < halfLen; i += 2) {
-                loMin = std::min(loMin, data[i]);
-                loMax = std::max(loMax, data[i]);
-                ++hist[data[i]];
-            }
-            std::vector<std::pair<unsigned char, int>> sorted(hist.begin(), hist.end());
-            std::sort(sorted.begin(), sorted.end(), [](auto &a, auto &b) { return a.second > b.second; });
-            std::cerr << "[dso5200] rawData parity=" << parity << ": min=" << (int)loMin << " max=" << (int)loMax
-                      << " uniqueVals=" << hist.size() << " top8=[";
-            for (size_t i = 0; i < sorted.size() && i < 8; ++i)
-                std::cerr << "(" << (int)sorted[i].first << ":" << sorted[i].second << ")";
-            std::cerr << "]\n";
-
-            if (parity == 1) {
-                const unsigned char threshold = (unsigned char)(loMin + (loMax - loMin) * 0.6);
-                std::cerr << "[dso5200] parity=1 low-value positions (<" << (int)threshold << "): [";
-                int printed = 0;
-                for (size_t i = 1; i < halfLen && printed < 30; i += 2) {
-                    if (data[i] < threshold) {
-                        std::cerr << (i / 2) << ":" << (int)data[i] << " ";
-                        ++printed;
-                    }
-                }
-                std::cerr << "]\n";
-            }
-        }
-    }
-
     return data;
 }
 
@@ -690,7 +675,13 @@ void Dso5200Control::threadMain() {
                     bulkCommand(BulkCaptureStart());
                     samplingStarted = true;
                     cycleCounter = 0;
-                    startCycle = (int)(trigger.position * 1000.0 / cycleTimeMs + 1.0);
+                    // Same units bug as doSetPretriggerPosition() (see its comment): trigger.position
+                    // is a 0..1 screen fraction here, not a time offset in seconds, so it must be
+                    // converted to milliseconds-into-the-window before dividing by cycleTimeMs.
+                    startCycle =
+                        (int)(trigger.position * ((double)getRecordLength() / samplerateCurrent * 1000.0) /
+                                  cycleTimeMs +
+                              1.0);
                     break;
 
                 default:
