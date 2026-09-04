@@ -34,6 +34,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <sstream>
 
 #include "protocol/states.h"
@@ -231,6 +232,13 @@ bool Dso5200Control::updateSamplerate(unsigned downsamplerValue, bool fastRate) 
     else
         samplerateCurrent = max / kBufferDivider;
 
+    if (debugLog) {
+        std::cerr << "[dso5200] updateSamplerate(downsampler=" << downsamplerValue << ", fastRate=" << fastRate
+                   << "): valueSlow=0x" << std::hex << (valueSlow == 0 ? 0 : (uint16_t)(0xffff - valueSlow))
+                   << " valueFast=0x" << (int)(4 - valueFast) << std::dec
+                   << " samplerateCurrent=" << samplerateCurrent << "\n";
+    }
+
     doSetPretriggerPosition(trigger.position);
     return true;
 }
@@ -243,6 +251,12 @@ bool Dso5200Control::applyTimebaseTableEntry(unsigned index, double *windowOut) 
     samplerateCommand.setSamplerateFast(entry.fast);
     samplerateCommand.setSamplerateSlow(entry.slow);
     triggerCommand.setFastRate(false);
+
+    if (debugLog) {
+        std::cerr << "[dso5200] applyTimebaseTableEntry(index=" << index << "): slow=0x" << std::hex
+                   << entry.slow << " fast=0x" << (int)entry.fast << std::dec << " divider=" << divider
+                   << " sr=" << sr << "\n";
+    }
 
     bulkCommand(samplerateCommand);
     bulkCommand(triggerCommand);
@@ -394,8 +408,22 @@ bool Dso5200Control::doSetChannelUsed(unsigned channel, bool used) {
 }
 
 bool Dso5200Control::doSetPretriggerPosition(double position) {
-    double positionSamples = position * samplerateCurrent;
     const unsigned recordLength = getRecordLength();
+
+    // Real bug found testing against hardware: this used `position * samplerateCurrent`, treating
+    // `position` as if it were already a time offset in seconds - but every caller in this port
+    // passes the raw 0..1 screen-fraction (see trigger.position's declaration), never converted to
+    // seconds. Upstream OpenHantek's GUI does that conversion itself before calling the equivalent
+    // function (main.cpp: `position * horizontal.timebase * DIVS_TIME`), which is dimensionally
+    // just `position * recordLength` once you cancel out timebase*DIVS_TIME/samplerate = recordLength
+    // - so multiplying by recordLength directly is the correct, simpler equivalent for a 0..1
+    // fraction input. With the old formula, the default position=0.0 happened to still produce
+    // *a* value (0 either way) - which is why this was never caught - but it made TriggerPositionPre/
+    // Post (0xd7ff/0xffff) diverge from what the real DSO-5200A software actually sends for its own
+    // default, centered trigger position (0xebff/0xebff, confirmed byte-for-byte via USB capture of
+    // the official Windows software - see docs/GUIA_ESTUDIO.md). Symptom: capture buffers reading
+    // as one tiny transition edge plus stale/flat filler for the rest of the record.
+    double positionSamples = position * recordLength;
     if (isFastRate()) positionSamples /= kChannels;
 
     const unsigned positionPre = 0xffff - recordLength + (unsigned)positionSamples;
@@ -468,6 +496,40 @@ std::vector<unsigned char> Dso5200Control::getSamples(unsigned &previousSampleCo
         return {};
     }
     data.resize((size_t)received);
+
+    if (debugLog && !data.empty()) {
+        const size_t halfLen = data.size() / 2;
+        for (size_t parity = 0; parity < 2; ++parity) {
+            unsigned char loMin = 255, loMax = 0;
+            std::map<unsigned char, int> hist;
+            for (size_t i = parity; i < halfLen; i += 2) {
+                loMin = std::min(loMin, data[i]);
+                loMax = std::max(loMax, data[i]);
+                ++hist[data[i]];
+            }
+            std::vector<std::pair<unsigned char, int>> sorted(hist.begin(), hist.end());
+            std::sort(sorted.begin(), sorted.end(), [](auto &a, auto &b) { return a.second > b.second; });
+            std::cerr << "[dso5200] rawData parity=" << parity << ": min=" << (int)loMin << " max=" << (int)loMax
+                      << " uniqueVals=" << hist.size() << " top8=[";
+            for (size_t i = 0; i < sorted.size() && i < 8; ++i)
+                std::cerr << "(" << (int)sorted[i].first << ":" << sorted[i].second << ")";
+            std::cerr << "]\n";
+
+            if (parity == 1) {
+                const unsigned char threshold = (unsigned char)(loMin + (loMax - loMin) * 0.6);
+                std::cerr << "[dso5200] parity=1 low-value positions (<" << (int)threshold << "): [";
+                int printed = 0;
+                for (size_t i = 1; i < halfLen && printed < 30; i += 2) {
+                    if (data[i] < threshold) {
+                        std::cerr << (i / 2) << ":" << (int)data[i] << " ";
+                        ++printed;
+                    }
+                }
+                std::cerr << "]\n";
+            }
+        }
+    }
+
     return data;
 }
 

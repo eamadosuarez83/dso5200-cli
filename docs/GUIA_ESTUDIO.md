@@ -489,6 +489,46 @@ directamente con el Bloque 5.
 > tomárselo en serio — y el historial de git de proyectos hermanos puede
 > tener el fix exacto que el refactor posterior perdió sin querer.
 
+> **Quinto caso real: la posición de pre-disparo se mandaba en las unidades
+> equivocadas**. Con `timebase` y los escalones de ganancia ya arreglados,
+> seguía apareciendo un síntoma distinto: capturando una señal cuadrada
+> conocida (generador externo *y* la salida CAL interna del propio equipo,
+> para descartar el generador como variable) el buffer mostraba **un único
+> flanco aislado, seguido de una meseta plana** hasta el final de la
+> ventana — nunca los varios ciclos que debía haber. `doSetPretriggerPosition()`
+> calculaba `positionSamples = position * samplerateCurrent`, tratando
+> `position` como si ya fuera un desplazamiento en *segundos* — pero
+> `trigger.position` en este port está declarado y usado en todas partes
+> como una fracción `0..1` de pantalla, nunca convertida. El propio código de
+> OpenHantek hace exactamente esa conversión, pero en la capa de arriba (la
+> GUI, `main.cpp`: `position * horizontal.timebase * DIVS_TIME`) antes de
+> llamar a la función equivalente — conversión que este port nunca portó.
+> Con `position = 0.0` (el valor por omisión) el error queda enmascarado
+> (`0.0` multiplicado por cualquier cosa sigue dando `0`), pero el valor por
+> omisión en sí ya estaba mal: producía `TriggerPositionPre = 0xD7FF`,
+> `TriggerPositionPost = 0xFFFF` — este último **por fuera del rango
+> documentado en `bulkcode.h`** (`0xd7ff` a `0xfffe`, un desborde de 1). Capturando
+> con Wireshark/USBPcap el tráfico USB real del software oficial de Windows
+> contra la misma señal se confirmó que su valor por omisión real es
+> `TriggerPositionPre = TriggerPositionPost = 0xEBFF` (disparo centrado al
+> 50%, no pegado al 0%). El fix: multiplicar directamente por el
+> **largo del registro** (`position * recordLength`, dimensionalmente
+> equivalente a la conversión de OpenHantek una vez que se cancelan
+> `timebase * DIVS_TIME / samplerate = recordLength`) y cambiar el valor por
+> omisión de `trigger.position` a `0.5`. Con eso, `dso5200basic` genera
+> exactamente `0xEBFF`/`0xEBFF` — bit a bit igual al software real — y el
+> split de la captura pasó de ~99.9 %/0.1 % (casi todo en un solo nivel) a
+> ~50/50 (un flanco limpio, justo centrado). **Esto es una mejora real y
+> confirmada, pero no resuelve el síntoma completo**: incluso con el valor
+> correcto, cada captura sigue mostrando un único flanco en vez de varios
+> ciclos — investigación en curso (ver Bloque 5, "para comprobar que lo
+> entendiste", sobre el largo de registro alternativo de 14336 muestras que
+> expone `modelDSO5200.cpp` de OpenHantek y que este port nunca usa).
+> Moraleja: un valor por omisión de `0.0` puede esconder un bug de unidades
+> durante meses porque `0 * cualquier_unidad = 0` — probalo con un valor
+> distinto de cero apenas sospeches algo así, aunque el CLI todavía no
+> exponga ese parámetro al usuario.
+
 ### Para comprobar que lo entendiste
 
 - Si pedís `volts 1 0.5` (0.5 V/div) por CLI, ¿qué escalón real termina
@@ -549,7 +589,7 @@ está en modo fast-rate, Bloque 4) y delega el troceo real en
 `USBDevice::bulkReadMulti`, que hace un *loop* de `bulkTransfer()`s de a
 `inPacketLength` bytes hasta completar el total pedido.
 
-> **Quinto caso real: una decodificación "canónica" que resultó estar de
+> **Sexto caso real: una decodificación "canónica" que resultó estar de
 > más**. OpenHantek decodifica el valor crudo de `triggerPoint` con un truco
 > de bits antes de usarlo (`calculateTriggerPoint`, "cada bit puesto invierte
 > todos los bits de menor valor") — y este port lo copió tal cual al

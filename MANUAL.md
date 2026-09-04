@@ -163,6 +163,14 @@ También era un bug real (la fórmula de samplerate no aplicaba a este modelo)
 ventanas de captura genuinamente distintas. Ver "Timebase — resuelto" en el
 README para el detalle técnico.
 
+**Cada captura muestra un solo flanco y después queda plana el resto de la ventana**
+Bug real, parcialmente corregido: la posición de pre-disparo se mandaba en
+unidades equivocadas (ver "Posición de pre-disparo" en el README). El fix
+mejoró la proporción de la captura que muestra el nivel bajo de la señal
+(de ~0.1 % a ~50 %), pero el síntoma completo — un solo flanco en vez de
+varios ciclos periódicos — sigue sin resolverse. Si lo estás viendo, no es
+tu configuración; es una investigación en curso.
+
 ## 5. Uso normal
 
 En una terminal:

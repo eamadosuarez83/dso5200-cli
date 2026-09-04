@@ -1,0 +1,92 @@
+CAPTURA USB DEL SOFTWARE NATIVO DSO5200A EN WINDOWS
+=====================================================
+
+Objetivo: capturar el trafico USB del software nativo del DSO5200A en una
+base de tiempo lenta comparable (10ms), para comparar cuantas veces
+re-arma/dispara antes de leer datos, contra lo que hace dso5200basic (el
+puerto CLI que estamos desarrollando en Linux).
+
+
+1. INSTALAR WIRESHARK + USBPCAP EN WINDOWS
+-------------------------------------------
+1. Descarga el instalador oficial desde wireshark.org (version para Windows).
+2. Durante la instalacion, cuando pregunte por componentes adicionales,
+   asegurate de marcar "USBPcap" (viene como opcion dentro del instalador
+   de Wireshark, no es un paso separado). Si ya tienes Wireshark instalado
+   sin USBPcap, puedes reinstalar/modificar para agregarlo, o instalarlo
+   por separado desde desowin.org/usbpcap.
+3. Reinicia Windows si el instalador lo pide (USBPcap instala un driver
+   de kernel).
+
+
+2. PREPARAR EL HARDWARE
+-------------------------
+1. Conecta el DSO5200A por USB ANTES de abrir Wireshark (asi puedes
+   identificar en que hub/puerto quedo).
+2. Conecta tu senal de prueba real: cuadrada de 1kHz, 2Vpp, 50% duty
+   cycle -- la misma que usamos en las pruebas de Linux -- a un canal
+   del osciloscopio.
+3. Abre el software nativo del DSO5200A e instala/verifica que reconoce
+   el equipo (esto puede requerir instalar el driver/software oficial de
+   Hantek si no lo tienes ya).
+
+
+3. IDENTIFICAR LA INTERFAZ USBPCAP CORRECTA
+---------------------------------------------
+1. Abre Administrador de dispositivos de Windows -> busca el DSO5200A
+   (puede aparecer como "Hantek" o dispositivo USB generico) ->
+   Propiedades -> pestana "Detalles" -> propiedad "Ubicacion" (Location),
+   para saber en que hub raiz esta.
+2. Abre Wireshark -> en la pantalla de inicio veras varias interfaces
+   USBPcapN (una por controlador/hub raiz). Si no estas seguro cual es,
+   no pasa nada: puedes capturar en varias a la vez, o simplemente
+   capturar en todas y filtrar despues.
+
+
+4. CAPTURAR
+------------
+1. Con el software nativo CERRADO todavia, empieza la captura en
+   Wireshark (doble clic en la interfaz USBPcapN correspondiente, o
+   selecciona varias con Ctrl+clic y dale "Start").
+2. Abre el software nativo del DSO5200A (asi capturamos tambien la
+   secuencia de inicializacion/enumeracion, por si acaso).
+3. En el software nativo, configura la base de tiempo a algo lento,
+   equivalente a nuestro caso de prueba (10ms/div, o el valor mas
+   cercano que tengan en su UI -- normalmente etiquetado directamente
+   como "10ms").
+4. Deja correr la captura en modo "Run" (no single-shot) durante unos
+   10-15 segundos, para que se vea el patron repetido de comandos, no
+   solo un disparo aislado.
+5. Detén la captura en Wireshark (boton cuadrado rojo).
+6. Guarda el archivo: File -> Save As -> formato .pcapng, con un nombre
+   descriptivo como dso5200a_native_10ms.pcapng.
+
+
+5. TRAER EL ARCHIVO DE VUELTA A LINUX
+----------------------------------------
+Este mismo texto lo deje en la particion NTFS "datos" (la que comparten
+ambos sistemas operativos), para que puedas leerlo desde Windows sin
+necesitar USB. Guarda el .pcapng generado ahi mismo (en la particion
+"datos"), y cuando reinicies de vuelta a Linux dime la ruta -- lo puedo
+leer directamente desde ahi, sin necesitar que lo copies de nuevo.
+
+Si tienes Claude Code (CLI) instalado en Windows, puedes pedirle
+directamente que te ayude a:
+  - instalar Wireshark + USBPcap (con winget o descargando el instalador),
+  - identificar la interfaz USBPcap correcta,
+  - iniciar/detener la captura desde la linea de comandos si prefieres
+    usar tshark.exe en vez de la interfaz grafica,
+  - y guardar el .pcapng en la particion "datos" compartida.
+
+Contexto para esa sesion de Windows (por si la usas): esto es parte del
+proyecto dso5200basic (puerto CLI sin Qt de OpenHantek para el
+Hantek DSO5200/5200A), estamos depurando un bug de fidelidad de forma de
+onda en bases de tiempo lentas -- el software Linux ya reporta la
+frecuencia/duracion de ventana correcta via analisis FFT, pero la forma
+capturada solo muestra transiciones de flanco, nunca la meseta baja de
+una onda cuadrada de 1kHz/50% duty. La hipotesis es que el hardware se
+re-dispara varias veces dentro de una "ventana lenta" en vez de hacer un
+barrido continuo. Se busca comparar el patron exacto de comandos
+BulkCaptureStart / TriggerEnabled / GetCaptureState que manda el software
+nativo de Windows contra lo que hace dso5200basic, para una base de
+tiempo lenta como 10ms.

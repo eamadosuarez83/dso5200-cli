@@ -52,7 +52,7 @@ class Dso5200Control : public IDsoSource {
     };
     struct TriggerSettings {
         double level[2] = {0.0, 0.0};
-        double position = 0.0; // pretrigger position, 0..1
+        double position = 0.5; // pretrigger position, 0..1 (0.5 = centered, matches real hardware/software default - see doSetPretriggerPosition())
         unsigned point = 0;
         Hantek::DTriggerPositionUsed used = Hantek::DTriggerPositionUsed::ON;
         uint8_t slope = 0; // 0 = rising, 1 = falling

@@ -87,8 +87,12 @@ abajo): detección de variante 5200 vs 5200A antes de tener firmware, un
 bloqueo del osciloscopio en modo simulación de disparo automático sin señal
 conectada, un crash del visor Python (backend Qt de matplotlib abortando
 el proceso en sesiones largas, confirmado con `coredumpctl`), `timebase` sin
-efecto real sobre la ventana de captura, y los escalones de ganancia 1.6V/div
-y 16V/div dejando el canal en cero plano.
+efecto real sobre la ventana de captura, los escalones de ganancia 1.6V/div
+y 16V/div dejando el canal en cero plano, y la posición de pre-disparo
+mandándose en unidades equivocadas (ver "Posición de pre-disparo" abajo —
+**este último caso sigue con un síntoma abierto**: la fracción de captura
+mejoró de ~99.9 %/0.1 % a ~50/50, pero cada frame sigue mostrando un único
+flanco en vez de varios ciclos de la señal).
 
 Para depurar a bajo nivel (ver transiciones de `captureState` y conteo de
 muestras en tiempo real), usá `./build/dso5200basic --debug`.
@@ -242,6 +246,54 @@ de ganancia dan lecturas reales — verificado capturando en los tres
 escenarios que reprodujeron el síntoma original: cambio de ganancia en
 pleno muestreo sobre CH1, sobre CH2, y ambos canales configurados a un
 escalón antes problemático desde antes de arrancar el muestreo.
+
+## Posición de pre-disparo — parcialmente resuelto, unidades equivocadas, síntoma completo sigue abierto
+
+Con `timebase` y los escalones de ganancia ya arreglados, seguía apareciendo
+otro síntoma: capturando una señal cuadrada conocida (generador externo *y*
+la salida CAL interna del propio equipo, para descartar el generador como
+variable) el buffer mostraba **un único flanco aislado, seguido de una
+meseta plana** hasta el final de la ventana — nunca los varios ciclos que
+debía haber, sin importar la base de tiempo (10 ms y 100 ms daban
+exactamente la misma forma).
+
+`Dso5200Control::doSetPretriggerPosition()` calculaba `positionSamples =
+position * samplerateCurrent`, tratando `position` como si ya fuera un
+desplazamiento en *segundos*. Pero `trigger.position` en este port está
+declarado y usado en todas partes como una fracción `0..1` de pantalla,
+nunca convertida a segundos antes de llegar ahí. El propio OpenHantek hace
+esa conversión, pero un nivel más arriba — en la GUI (`main.cpp`:
+`position * horizontal.timebase * DIVS_TIME`) — antes de llamar a la
+función equivalente; esa conversión nunca se portó.
+
+Con el valor por omisión `position = 0.0` el bug queda enmascarado (`0.0`
+multiplicado por cualquier cosa sigue siendo `0`), pero el valor por
+omisión en sí ya estaba mal: producía `TriggerPositionPre = 0xD7FF`,
+`TriggerPositionPost = 0xFFFF` — este último **fuera del rango documentado**
+en `bulkcode.h` (`0xd7ff` a `0xfffe`, un desborde de 1). Capturando con
+Wireshark/USBPcap el tráfico USB real del software oficial de Windows
+contra la misma señal se confirmó su valor real por omisión:
+`TriggerPositionPre = TriggerPositionPost = 0xEBFF` (disparo centrado al
+50 %, no pegado al 0 %).
+
+El fix: multiplicar por el **largo del registro** en vez del samplerate
+(`position * recordLength` — dimensionalmente equivalente a la conversión
+de OpenHantek, una vez que se cancela `timebase * DIVS_TIME / samplerate =
+recordLength`), y cambiar el valor por omisión de `trigger.position` a
+`0.5`. Con eso, `dso5200basic` genera exactamente `0xEBFF`/`0xEBFF` — bit a
+bit igual al software real.
+
+**Resultado parcial**: la fracción de la captura que muestra el nivel
+"bajo" de la señal pasó de ~0.1 % (prácticamente nada) a ~50 % — una mejora
+real y medible. Pero **el síntoma completo sigue sin resolverse**: incluso
+con el valor de pre-disparo correcto, cada frame sigue mostrando un único
+flanco en vez de múltiples ciclos periódicos, tanto con el generador externo
+como con CAL, y tanto en 10 ms como en 100 ms. Se descartó que sea un bug de
+indexado de este port (leer el buffer crudo sin la rotación por
+`trigger.point` da el mismo resultado). Queda como hipótesis abierta si el
+`recordLength` correcto para estos casos es otro de los que expone
+`modelDSO5200.cpp` de OpenHantek (`{UINT_MAX, 10240, 14336}` — este port
+sólo usa `10240`) en vez de si es realmente un problema de pre-disparo.
 
 ## Protocolo de streaming hacia el visor
 
