@@ -287,13 +287,36 @@ bit igual al software real.
 "bajo" de la señal pasó de ~0.1 % (prácticamente nada) a ~50 % — una mejora
 real y medible. Pero **el síntoma completo sigue sin resolverse**: incluso
 con el valor de pre-disparo correcto, cada frame sigue mostrando un único
-flanco en vez de múltiples ciclos periódicos, tanto con el generador externo
-como con CAL, y tanto en 10 ms como en 100 ms. Se descartó que sea un bug de
-indexado de este port (leer el buffer crudo sin la rotación por
-`trigger.point` da el mismo resultado). Queda como hipótesis abierta si el
-`recordLength` correcto para estos casos es otro de los que expone
-`modelDSO5200.cpp` de OpenHantek (`{UINT_MAX, 10240, 14336}` — este port
-sólo usa `10240`) en vez de si es realmente un problema de pre-disparo.
+flanco en vez de múltiples ciclos periódicos — confirmado idéntico en las
+**12 entradas** de `kSlowTimebaseTable` (246 us a 1.64 s), con el generador
+externo y con CAL. La forma no cambia con la ventana pedida; sólo cambia la
+etiqueta de tiempo del eje X.
+
+**La prueba definitiva** salió de medir tiempo real de reloj en vez de
+confiar en lo que el software reporta sobre sí mismo: pidiendo la ventana
+más lenta (1.638 s) y midiendo desde `start` hasta el primer dato (con el
+timestamp que ya trae cada frame), el dato llegó en **0.435 s** — menos de
+un tercio de lo físicamente posible para un ADC muestreando continuo esa
+ventana. Repitiendo la misma medición sobre la captura USB real del
+software oficial de Windows, en un ajuste equivalente (~0.33 s reclamados):
+su tiempo real promedio fue **0.309 s**, casi idéntico a lo reclamado. El
+software real sí respeta el tiempo físico de la captura; el nuestro no.
+Para descartar "leemos demasiado pronto" se forzó una espera artificial
+mayor que toda la ventana reclamada entre ver `READY5200` y llamar a
+`getSamples()` — el contenido no cambió nada, confirmando que el
+dispositivo ya había terminado y congelado su buffer mucho antes.
+
+Con esto se descartaron, uno por uno, todos los valores de configuración
+como sospechosos: `SamplerateSlow`/`SamplerateFast` (idénticos a Windows,
+verificado con `usbmon`), la posición de pre-disparo (ya corregida,
+idéntica a Windows), y los campos de `ETsrBits` — fuente de disparo,
+canales usados, pendiente — (también idénticos a Windows, byte a byte).
+También se descartó que sea un bug de indexado de este port (leer el
+buffer crudo sin la rotación por `trigger.point` da el mismo resultado).
+Lo que queda como sospechoso, para la próxima sesión, es la secuencia de
+comandos `ENABLETRIGGER`/`FORCETRIGGER` de `threadMain()` — algo en cómo
+se arma/reintenta el disparo parece hacer que el dispositivo dé por
+terminado el barrido antes de tiempo.
 
 ## Protocolo de streaming hacia el visor
 

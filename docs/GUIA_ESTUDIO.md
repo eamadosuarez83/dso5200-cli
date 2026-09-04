@@ -521,13 +521,42 @@ directamente con el Bloque 5.
 > ~50/50 (un flanco limpio, justo centrado). **Esto es una mejora real y
 > confirmada, pero no resuelve el síntoma completo**: incluso con el valor
 > correcto, cada captura sigue mostrando un único flanco en vez de varios
-> ciclos — investigación en curso (ver Bloque 5, "para comprobar que lo
-> entendiste", sobre el largo de registro alternativo de 14336 muestras que
-> expone `modelDSO5200.cpp` de OpenHantek y que este port nunca usa).
+> ciclos, y esto se confirmó **idéntico en las 12 entradas de
+> `kSlowTimebaseTable`** (246 us a 1.64 s) — la forma no cambia con la
+> ventana pedida, sólo cambia la etiqueta de tiempo en el eje X.
+>
+> La pista definitiva salió de medir **tiempo real de reloj, no el que
+> reportamos**: pidiendo la ventana más lenta (1.638 s) y midiendo desde el
+> comando `start` hasta que llega el primer dato (usando el timestamp que ya
+> trae cada frame), el dato estuvo listo en **0.435 s** - menos de un
+> tercio de lo físicamente posible si el ADC muestreara continuo a la tasa
+> lenta configurada durante los 10240 puntos del registro. Repitiendo la
+> misma medición sobre la captura USB del software oficial de Windows, para
+> un ajuste equivalente (~0.33 s de ventana reclamada): su tiempo real
+> promedio fue **0.309 s** - prácticamente igual a lo reclamado. Es decir,
+> el software real sí respeta el tiempo físico; el nuestro no. Para
+> descartar que sea "leemos demasiado pronto" se forzó una espera artificial
+> (más larga que toda la ventana reclamada) entre ver `READY5200` y llamar a
+> `getSamples()`: el contenido no cambió en absoluto, confirmando que el
+> dispositivo ya había terminado y congelado su buffer mucho antes,
+> independientemente de cuándo se le pida leerlo después.
+>
+> Con esto se descartaron, uno por uno, todos los candidatos de
+> configuración: los valores de `SamplerateSlow`/`SamplerateFast` (idénticos
+> a Windows, verificado con `usbmon`), la posición de pre-disparo (ya
+> corregida, idéntica a Windows), y los campos de `ETsrBits` - fuente de
+> disparo, canales usados, pendiente - (también idénticos a Windows, byte a
+> byte). **Investigación en curso**: lo que queda como sospechoso es la
+> secuencia de comandos `ENABLETRIGGER`/`FORCETRIGGER` de `threadMain()`
+> (Bloque 4) - algo en cómo se arma/reintenta el disparo parece hacer que el
+> dispositivo dé por terminado el barrido antes de tiempo, en vez de
+> sostenerlo el tiempo real pedido.
 > Moraleja: un valor por omisión de `0.0` puede esconder un bug de unidades
 > durante meses porque `0 * cualquier_unidad = 0` — probalo con un valor
 > distinto de cero apenas sospeches algo así, aunque el CLI todavía no
-> exponga ese parámetro al usuario.
+> exponga ese parámetro al usuario. Y cuando algo "debería tardar X" y no
+> cuadra, medí el tiempo de reloj real en vez de confiar en los valores que
+> el propio software reporta sobre sí mismo.
 
 ### Para comprobar que lo entendiste
 

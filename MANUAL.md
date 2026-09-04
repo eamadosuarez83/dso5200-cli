@@ -168,8 +168,12 @@ Bug real, parcialmente corregido: la posición de pre-disparo se mandaba en
 unidades equivocadas (ver "Posición de pre-disparo" en el README). El fix
 mejoró la proporción de la captura que muestra el nivel bajo de la señal
 (de ~0.1 % a ~50 %), pero el síntoma completo — un solo flanco en vez de
-varios ciclos periódicos — sigue sin resolverse. Si lo estás viendo, no es
-tu configuración; es una investigación en curso.
+varios ciclos periódicos — sigue sin resolverse, confirmado igual en las 12
+bases de tiempo programadas. Medido con reloj real: el dispositivo dice
+"listo" mucho antes de lo físicamente posible (0.435s reales para una
+ventana pedida de 1.638s), mientras que el software oficial de Windows sí
+respeta el tiempo físico (0.309s reales para ~0.33s pedidos). Si lo estás
+viendo, no es tu configuración; es una investigación en curso.
 
 ## 5. Uso normal
 
