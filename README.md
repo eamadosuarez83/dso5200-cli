@@ -323,6 +323,35 @@ número de ciclos capturados ahora escala proporcionalmente con la ventana
 pedida (1, 2, 2, 2, 6, 12, 35, 74, 106, 304, 1002+ ciclos de 246 us a
 819 ms) — exactamente lo esperado para una señal de 1 kHz.
 
+## CH2 lee cero plano en 4V/div y 40V/div — abierto, sin resolver
+
+Con el bug de timebase ya resuelto, probando con el generador conectado a
+ambos canales apareció un síntoma nuevo: CH1 funciona bien en las 12 bases
+de tiempo, pero **CH2 lee cero plano exactamente en `volts 2 4.0` y
+`volts 2 40.0`** — confirmado que no es un problema de "canal sin
+inicializar" (pedir `volts 2 4.0` con el canal ya activo y muestreando
+reproduce el cero plano igual).
+
+Los datos de calibración que el dispositivo reporta para CH2 en esos dos
+escalones (`gain=4` y `gain=7`) son **idénticos byte a byte**
+(`start=510, end=3440`, un rango mucho más ancho que cualquier otro
+escalón de CH2 o que el equivalente en CH1). Con el offset por omisión
+(`0.0`, que mapea al extremo mínimo del rango — mismo patrón que el bug de
+posición de disparo ya corregido) ese extremo cae fuera de la zona útil
+del ADC para esos dos escalones específicos, causando saturación real
+(confirmado con los bytes crudos: valor constante, no ruido).
+
+Se agregó un comando de CLI temporal, sólo para depurar
+(`offsettest <canal> <fracción>`), para barrer valores de offset sin
+recompilar. Con offset 0.0-0.15 la lectura sigue saturada; desde ~0.2
+aparece la periodicidad correcta (51 ciclos, coincidiendo con CH1), pero
+**la escala de voltaje nunca se estabiliza** en un resultado limpio en
+todo el rango 0.2-0.5 probado — descarta que el fix sea tan simple como
+cambiar el offset por omisión a 0.5 (ese cambio genérico ya se probó y
+rompió otros escalones, ver el bug de posición de disparo). Sigue abierto;
+ver `docs/GUIA_ESTUDIO.md` (Bloque 6, séptimo caso real) para el detalle
+completo y los próximos pasos sugeridos.
+
 ## Protocolo de streaming hacia el visor
 
 Ver [`docs/PROTOCOL.md`](docs/PROTOCOL.md).

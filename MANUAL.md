@@ -173,6 +173,14 @@ los trata igual. Si lo ves en una copia vieja del repo, actualizá
 `src/device/dso5200.cpp` (ver "Timebase lento sólo capturaba un flanco" en
 el README para el detalle técnico completo).
 
+**CH2 lee cero plano en 4V/div o 40V/div específicamente**
+Bug real, todavía sin resolver. Pasa sólo en esos dos escalones de CH2 (CH1
+funciona bien en los mismos); los datos de calibración que reporta el
+equipo para CH2 ahí son inusualmente anchos. Si necesitás ver señal en CH2
+ahora mismo, usá cualquier otro V/división (0.16 a 1.6, o 8 a 16, o 80)
+mientras se investiga — ver "CH2 lee cero plano" en el README para el
+detalle técnico y el estado de la investigación.
+
 ## 5. Uso normal
 
 En una terminal:

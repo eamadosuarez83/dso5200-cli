@@ -8,6 +8,8 @@
 #include <sstream>
 #include <vector>
 
+#include "device/dso5200.h"
+
 namespace Cli {
 
 namespace {
@@ -164,6 +166,20 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
             return;
         }
         std::cout << "Nivel de disparo ajustado a " << tokens[1] << " V.\n";
+    } else if (cmd == "offsettest") {
+        // TEMP TEST command: investigating a CH2-specific flat-zero bug at 4V/40V.
+        if (tokens.size() != 3) {
+            std::cout << "Uso: offsettest <1|2> <fraccion 0..1>\n";
+            return;
+        }
+        auto channel = parseChannelIndex(tokens[1]);
+        auto frac = parseNumber(tokens[2]);
+        auto *dso = dynamic_cast<Dso5200Control *>(&source);
+        if (!channel || !frac || !dso || !dso->debugSetOffsetFraction((unsigned)*channel, *frac)) {
+            std::cout << "offsettest fallo.\n";
+            return;
+        }
+        std::cout << "offset canal " << tokens[1] << " = " << tokens[2] << "\n";
     } else {
         std::cout << "Comando desconocido: " << cmd << " (escribe 'help')\n";
     }

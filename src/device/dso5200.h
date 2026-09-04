@@ -43,6 +43,12 @@ class Dso5200Control : public IDsoSource {
 
     std::string statusText() const override;
 
+    // TEMP TEST: investigating a CH2-specific flat-zero bug at 4V/div and 40V/div.
+    bool debugSetOffsetFraction(unsigned channel, double offset) {
+        std::lock_guard<std::mutex> lock(ioMutex);
+        return doSetOffset(channel, offset);
+    }
+
   private:
     struct VoltageSettings {
         double offset = 0.0;

@@ -739,6 +739,57 @@ El resultado no es un array de doubles suelto — es un `CaptureFrame`
 7: agrupa por canal, incluye el V/división y la tasa de muestreo, y usa
 `float` (no `double`) porque es lo que se manda por la red.
 
+> **Séptimo caso real (abierto, sin resolver todavía): CH2 lee cero plano
+> en 4V/div y 40V/div, específicamente — CH1 funciona bien en esos mismos
+> escalones**. Con el bug de timebase ya resuelto (Bloque 4, quinto caso
+> real) y probando con el generador conectado a ambos canales, apareció un
+> síntoma nuevo y distinto: CH1 mostraba la onda cuadrada correctamente en
+> las 12 bases de tiempo, pero CH2 leía **cero plano** exactamente en
+> `volts 2 4.0` y `volts 2 40.0` — confirmado explícitamente (no es un
+> problema de "canal sin inicializar": pedir `volts 2 4.0` después de que
+> el canal ya estaba activo y muestreando reproduce el cero plano igual).
+>
+> Revisando los datos de calibración que el propio dispositivo reporta
+> (`offsetLimit`, leídos por `retrieveChannelLevelData()` vía
+> `CONTROL_VALUE`/`VALUE_OFFSETLIMITS`): para CH2 en `gain=4` y `gain=7`
+> (4V y 40V) el rango es **idéntico byte a byte** (`start=510, end=3440`,
+> ancho=2930) — mucho más ancho que cualquier otro escalón de CH2, y muy
+> distinto del equivalente en CH1 en esos mismos dos índices (`1136-1699` y
+> `1139-1697`, angostos y casi iguales entre sí, como cabría esperar). Con
+> el offset por omisión (`voltage[channel].offset = 0.0`, que
+> `doSetOffset()` mapea al extremo *mínimo* del rango — mismo patrón que el
+> quinto caso real de la posición de disparo) ese extremo mínimo (510)
+> parece caer fuera de la zona útil del ADC para esos dos escalones
+> concretos de CH2, produciendo saturación real (no un bug de cómputo: los
+> bytes crudos vienen pinneados en un valor constante).
+>
+> Se agregó temporalmente un comando de CLI de sólo depuración
+> (`offsettest <canal> <fracción>`, en `command_parser.cpp` y
+> `Dso5200Control::debugSetOffsetFraction()`) para barrer distintos valores
+> de offset sin recompilar. Resultado del barrido en CH2/4V: con
+> offset entre 0.0 y ~0.15 la lectura sigue completamente saturada (un
+> valor constante, no cero pero tampoco variable); a partir de ~0.2
+> aparece la forma periódica correcta (51 ciclos, coincidiendo con el
+> conteo real de CH1 en el mismo timebase) pero **la escala de voltaje no
+> se estabiliza** en ningún punto entre 0.2 y 0.5 — sigue derivando de
+> forma no lineal, nunca llega a un resultado limpio tipo "0 a 2.5 V" como
+> el que sí muestra CH1 sin tocar nada. Esto descarta que sea simplemente
+> "el offset por omisión debería ser 0.5 en vez de 0.0" (ese fix genérico
+> ya se probó y se descartó en el quinto caso real, porque rompía otros
+> escalones) y apunta a que el propio dato de calibración ancho de 510-3440
+> podría ser una particularidad real de la calibración de fábrica de CH2 en
+> este equipo específico, no un bug de software con un fix limpio evidente.
+>
+> **Sigue sin resolverse.** Próximos pasos sugeridos: (1) revisar si
+> `kVoltageLimit`/`kGain` (que sí tienen un mapeo `gainId % 3` específico
+> del DSO-5200, distinto del genérico — ver cuarto caso real, Bloque 4)
+> deberían aplicarse también a cómo se *interpreta* `offsetLimit`, en vez de
+> indexarlo directo por `gainId`; (2) comparar contra una captura USB real
+> de Windows cambiando a esos mismos V/división en CH2, para ver qué offset
+> manda el software oficial en ese caso concreto; (3) aceptar un valor de
+> offset fijo encontrado empíricamente sólo para esos dos escalones de CH2,
+> si no aparece una explicación más limpia.
+
 ### Para comprobar que lo entendiste
 
 - ¿Por qué el buffer crudo mide exactamente el doble de `totalSampleCount`
