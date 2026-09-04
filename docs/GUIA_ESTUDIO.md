@@ -303,7 +303,7 @@ formas distintas.
 **Cómo se envía un comando bulk realmente** — todo comando bulk va precedido
 por un `ControlBeginCommand` (`controlStructs.cpp:11`), que le avisa al
 dispositivo "viene un comando bulk"; esto está encapsulado en
-`Dso5200Control::bulkCommand()` (Bloque 4, `dso5200.cpp:330`) para no tener
+`Dso5200Control::bulkCommand()` (Bloque 4, `dso5200.cpp:432`) para no tener
 que repetirlo en cada punto de uso.
 
 ### Para comprobar que lo entendiste
@@ -364,7 +364,7 @@ canal, qué samplerate está corriendo, etc.) para poder hacer esos cálculos.
 | `device/dso5200.h` | Declaración de `Dso5200Control`: estado (`voltage[]`, `trigger`, comandos persistentes) y métodos |
 | `device/dso5200.cpp` | La implementación completa — es el archivo más denso del proyecto, vale la pena leerlo función por función |
 
-**Cálculo de samplerate** (`dso5200.cpp:140`, `getBestSamplerate`):
+**Cálculo de samplerate** (`dso5200.cpp:188`, `getBestSamplerate`):
 recibe la tasa deseada y calcula el divisor entero más cercano
 (`base / divisor / samplerate`), redondeando hacia arriba o abajo según si se
 pide "al menos esta tasa" o "como máximo esta tasa". El resultado se manda al
@@ -372,13 +372,13 @@ hardware en `updateSamplerate()` (línea 164), que separa el divisor en dos
 valores de 8/16 bits (`samplerateFast`/`samplerateSlow`) porque así está
 definido el comando `BulkSetSamplerate5200` (ver Bloque 3).
 
-**Ajuste de ganancia** (`dso5200.cpp:202`, `doSetGain`): busca en la tabla
+**Ajuste de ganancia** (`dso5200.cpp:289`, `doSetGain`): busca en la tabla
 `kGain` (línea 34) el primer escalón que cubra el valor pedido, actualiza el
 comando `gainCommand` y el comando `relaysCommand` (los relés analógicos que
 conmutan atenuadores/rangos), y **encadena** una llamada a `doSetOffset()` —
 porque el offset válido depende de qué ganancia está puesta.
 
-**Nivel de disparo** (`dso5200.cpp:238`, `doSetTriggerLevel`, expuesto por el
+**Nivel de disparo** (`dso5200.cpp:340`, `doSetTriggerLevel`, expuesto por el
 comando CLI `trigger <volts>` vía `setTriggerLevel()` en la línea 110): la
 lógica es simétrica a la de offset — el nivel en volts se convierte a un
 valor crudo del rango de calibración del canal (mismos `offsetLimit` que usa
@@ -387,7 +387,7 @@ efecto si el canal coincide con `trigger.source` (fijo en CH1 en esta
 herramienta — ver el segundo caso real, más abajo, sobre qué pasó cuando eso
 no estaba bien configurado).
 
-**Máquina de estados de captura** (`dso5200.cpp:452`, `threadMain`): un hilo
+**Máquina de estados de captura** (`dso5200.cpp:554`, `threadMain`): un hilo
 dedicado (ver el Anexo de hilos, más abajo) que pregunta periódicamente al
 osciloscopio en qué estado está (`CAPTURE_WAITING`, `CAPTURE_SAMPLING`,
 `CAPTURE_READY5200`) y decide qué hacer en cada uno — esto conecta
@@ -425,10 +425,74 @@ directamente con el Bloque 5.
 > a esta herramienta porque la fuente de disparo se asumió "fija en CH1" y
 > se dio por hecho que el valor por defecto del protocolo ya reflejaba eso.
 
+> **Tercer caso real: `timebase` no cambiaba nada, de verdad**. Con el
+> osciloscopio ya disparando de forma estable (casos anteriores resueltos),
+> cambiar `timebase` seguía sin tener ningún efecto visible: a 100 us, 10 ms o
+> 40 ms se veía siempre la misma ventana corta de señal. Se confirmó
+> empíricamente que no era percepción — capturando datos crudos a 100 us y a
+> 40 ms daban prácticamente la misma señal, byte a byte. La causa: la fórmula
+> de `updateSamplerate()` (heredada de `getBestSamplerate()`, portada de
+> OpenHantek) calcula el divisor `SamplerateSlow`/`SamplerateFast` de forma
+> *continua* (`0xffff - valueSlow`), pero el DSO-5200 sólo entiende un
+> conjunto **fijo** de 12 valores "mágicos" de 16 bits para `SamplerateSlow`
+> — cualquier otro valor simplemente no cambia la tasa real de muestreo. Se
+> confirmó cruzando esos valores contra dos implementaciones independientes,
+> ambas con soporte probado del DSO-5200A: el driver `hantek-dso` de sigrok y
+> [`Blokkendoos/HantekDSO`](https://github.com/Blokkendoos/HantekDSO) (ambas
+> reportan **exactamente los mismos 12 valores**, byte a byte). La solución
+> (`kSlowTimebaseTable` y `doSetRecordTime()`/`applyTimebaseTableEntry()` en
+> `dso5200.cpp`) reemplaza la fórmula continua por una búsqueda en esa tabla
+> fija, calculando la duración real de cada entrada con la fórmula
+> documentada del comando `0x0c` y eligiendo la más cercana a lo pedido.
+> Importante: en el camino se probó — y se descartó — una hipótesis
+> relacionada: que el comando combinado `SETTRIGGERANDSAMPLERATE` (`0x01`,
+> el que usa sigrok "de forma uniforme" y el que usa `HantekDSO` en su
+> `dsoSetTriggerAndSampleRate()`) fuera el correcto para el DSO-5200. Pero la
+> propia documentación de protocolo de OpenHantek (`bulkcode.h`) aclara que
+> ese comando combinado sólo es válido para `MODEL_DSO2090`/`MODEL_DSO2150`
+> — el DSO-5200/5200A usan el par de comandos *separados*
+> `CSETTRIGGERORSAMPLERATE` (`0x0c`, sólo samplerate) +
+> `ESETTRIGGERORSAMPLERATE` (`0x0e`, sólo bits de disparo), que es
+> justamente lo que este port ya enviaba. El problema nunca fue el comando
+> (el "framing"), sino los *valores* que se metían en él.
+
+> **Cuarto caso real: el relé de atenuación cambiaba un escalón demasiado
+> pronto**. Con `timebase` ya arreglado, quedó otro síntoma: pedir ciertos
+> V/división concretos (1.6 V, 16 V — los valores a los que redondean
+> pedidos "razonables" como "1 V" o "10 V") dejaba el canal leyendo **cero
+> plano**, de forma permanente (se confirmó que no era un problema de tiempo
+> de asentamiento capturando durante 6+ segundos seguidos sin que se
+> recuperara solo), en CH1 y CH2 por igual, y se resolvía en cuanto se pedía
+> *cualquier otro* V/división. La pista definitiva no salió de este
+> proyecto, sino de revisar el historial de git de otro fork de OpenHantek
+> (`OpenHantek6022`, que en su día también dio soporte al DSO-5200): el
+> commit `b935f4e` ("Mostly DSO-5200 bugfixes, thanks to Ash", 2010) agrega
+> justo el comentario que ya estaba — sin explicación — en nuestro propio
+> `controlcode.h`: *"The limits are `<=` instead of `<` for the 10 bit
+> models, since those support voltages up to 10 V"*. El DSO-5200/5200A son
+> justamente eso, un modelo de 10 bits — y en algún punto entre ese fix de
+> 2010 y la versión de `modelDSO5200.cpp` de la que salió este port, esa
+> rama específica del modelo se perdió, dejando sólo la fórmula genérica (de
+> 8 bits) `gainID < 3` / `gainID < 6`, que cambia el relé un escalón antes de
+> lo debido — justo en los índices 3 y 6, justo donde se veía el cero plano.
+> El mismo commit reveló, además, que la tabla de índice de ganancia
+> (`kGain[].index`, lo que se manda por `BulkSetGain`) y la tabla de
+> divisores de decodificación (`kVoltageLimit[]`) también habían derivado
+> hacia la fórmula genérica en vez de la específica del DSO-5200
+> (`gainId % 3` con una excepción en `gainId == 0`). Corrigiendo las tres
+> tablas a la vez (ver los comentarios junto a `kGain`/`kVoltageLimit` y
+> `doSetGain()` en `dso5200.cpp`), los 9 escalones de ganancia dan lecturas
+> reales — se verificó capturando en los tres escenarios que reprodujeron el
+> síntoma original (cambio en pleno muestreo en CH1, en CH2, y configurado
+> antes de arrancar). Moraleja: cuando un comentario en el propio código dice
+> "esto es distinto para tal modelo" sin dar más contexto, vale la pena
+> tomárselo en serio — y el historial de git de proyectos hermanos puede
+> tener el fix exacto que el refactor posterior perdió sin querer.
+
 ### Para comprobar que lo entendiste
 
 - Si pedís `volts 1 0.5` (0.5 V/div) por CLI, ¿qué escalón real termina
-  usando el hardware, y por qué (mirá `kGain` en `dso5200.cpp:34`)?
+  usando el hardware, y por qué (mirá `kGain` en `dso5200.cpp:82`)?
 - ¿Por qué `doSetChannelUsed()` puede terminar llamando a
   `doSetRecordTime()` (mirá el final de la función)? ¿Qué relación hay entre
   "cuántos canales están activos" y "qué samplerate máximo se puede pedir"?
@@ -466,26 +530,26 @@ paquete USB máximo, así que hay que trocear la lectura.
 
 ### Dónde está
 
-**Estado de captura** (`dso5200.cpp:336`, `getCaptureState`): manda
+**Estado de captura** (`dso5200.cpp:438`, `getCaptureState`): manda
 `BulkGetCaptureState` (comando `0x06`) y lee la respuesta con
 `device->bulkRead(&response)` — nótese que acá `bulkRead` (definido en
 `usbdevice.h:49`) usa el mismo buffer del objeto `response` tanto para pedir
 como para recibir, un patrón típico en protocolos de bulk transfer simples.
 
-**Uso del punto de disparo** (`dso5200.cpp:462`, dentro de `threadMain`, justo
+**Uso del punto de disparo** (`dso5200.cpp:564`, dentro de `threadMain`, justo
 después de `getCaptureState()`): `trigger.point = triggerPoint;` — se usa
 **tal cual**, sin decodificación adicional. No siempre fue así: ver el caso
 real más abajo, sobre por qué se sacó una decodificación de bits que
 OpenHantek sí aplica.
 
-**Lectura troceada** (`dso5200.cpp:347`, `getSamples`, que llama a
+**Lectura troceada** (`dso5200.cpp:449`, `getSamples`, que llama a
 `device->bulkReadMulti()` en `usbdevice.cpp`): pide `GETDATA` (`0x05`),
 calcula cuántos bytes totales espera (`getSampleCount()` — que depende de si
 está en modo fast-rate, Bloque 4) y delega el troceo real en
 `USBDevice::bulkReadMulti`, que hace un *loop* de `bulkTransfer()`s de a
 `inPacketLength` bytes hasta completar el total pedido.
 
-> **Tercer caso real: una decodificación "canónica" que resultó estar de
+> **Quinto caso real: una decodificación "canónica" que resultó estar de
 > más**. OpenHantek decodifica el valor crudo de `triggerPoint` con un truco
 > de bits antes de usarlo (`calculateTriggerPoint`, "cada bit puesto invierte
 > todos los bits de menor valor") — y este port lo copió tal cual al
@@ -562,7 +626,7 @@ tengan sentido físico (volts).
 
 ### Dónde está
 
-`dso5200.cpp:372`, `convertRawDataToSamples`. Es la función más intrincada
+`dso5200.cpp:474`, `convertRawDataToSamples`. Es la función más intrincada
 del proyecto — conviene leerla junto con `bulkcode.h` (comentario de
 `GETDATA`, que dibuja en ASCII cómo viene el buffer) en otra pestaña.
 

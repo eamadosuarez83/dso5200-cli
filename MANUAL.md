@@ -151,6 +151,18 @@ indefinidamente — `dso5200basic` fuerza el disparo automáticamente al cabo de
 unos ciclos. Si aun así no ves frames, corré con `--debug` y fijate si
 `captureState` queda fijo en `1` (CAPTURE_SAMPLING) sin volver a cambiar.
 
+**Cambio `volts 1|2 1.6` (o `16`) y el canal queda en cero plano**
+Este era un bug real (relé de atenuación con el umbral equivocado para el
+DSO-5200, un modelo de 10 bits) — ya está corregido. Si lo ves en una copia
+vieja del repo, actualizá `src/device/dso5200.cpp` (ver "Escalones de
+ganancia (V/div) — resuelto" en el README para el detalle técnico).
+
+**`timebase` no cambia nada, siempre se ve la misma ventana de señal**
+También era un bug real (la fórmula de samplerate no aplicaba a este modelo)
+— ya está corregido; `timebase 100us`, `10ms` y `40ms` ahora producen
+ventanas de captura genuinamente distintas. Ver "Timebase — resuelto" en el
+README para el detalle técnico.
+
 ## 5. Uso normal
 
 En una terminal:

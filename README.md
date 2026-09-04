@@ -85,8 +85,10 @@ Varios problemas reales aparecieron sólo al probar contra hardware, y ya
 están corregidos (ver "Desviaciones deliberadas respecto a OpenHantek"
 abajo): detección de variante 5200 vs 5200A antes de tener firmware, un
 bloqueo del osciloscopio en modo simulación de disparo automático sin señal
-conectada, y un crash del visor Python (backend Qt de matplotlib abortando
-el proceso en sesiones largas, confirmado con `coredumpctl`).
+conectada, un crash del visor Python (backend Qt de matplotlib abortando
+el proceso en sesiones largas, confirmado con `coredumpctl`), `timebase` sin
+efecto real sobre la ventana de captura, y los escalones de ganancia 1.6V/div
+y 16V/div dejando el canal en cero plano.
 
 Para depurar a bajo nivel (ver transiciones de `captureState` y conteo de
 muestras en tiempo real), usá `./build/dso5200basic --debug`.
@@ -173,6 +175,73 @@ Hantek, **no aplica al DSO-5200(A)**. Corregido eliminando esa decodificación
 (`Dso5200Control` ya no tiene una función `calculateTriggerPoint`; ver el
 comentario en `dso5200.cpp` junto a `retrieveChannelLevelData()` para el
 detalle completo, con referencia cruzada al código de sigrok).
+
+## Timebase — resuelto, tabla de valores fijos en vez de fórmula continua
+
+`timebase` no tenía ningún efecto real sobre la ventana de captura: pedir
+100 us, 10 ms o 40 ms daba siempre la misma señal (confirmado byte a byte,
+capturando datos crudos). La causa: `updateSamplerate()` calculaba los
+registros `SamplerateFast`/`SamplerateSlow` del comando
+`CSETTRIGGERORSAMPLERATE` (`0x0c`) con una fórmula *continua*
+(`0xffff - valueSlow`) heredada de OpenHantek — pero el DSO-5200 sólo
+entiende un conjunto **fijo** de 12 valores "mágicos" de 16 bits para
+`SamplerateSlow`; cualquier otro valor no cambia la tasa real de muestreo.
+Se cruzaron esos 12 valores contra dos implementaciones independientes con
+soporte probado del DSO-5200A — el driver `hantek-dso` de sigrok y
+[`Blokkendoos/HantekDSO`](https://github.com/Blokkendoos/HantekDSO) — y
+ambas reportan **exactamente la misma tabla**, byte a byte. Corregido
+reemplazando la fórmula por una búsqueda en esa tabla fija
+(`kSlowTimebaseTable`, `doSetRecordTime()`/`applyTimebaseTableEntry()` en
+`src/device/dso5200.cpp`), calculando la duración real de cada entrada con
+la fórmula documentada del propio comando `0x0c` y eligiendo la más cercana
+a lo pedido. Verificado: pedir `timebase 1ms`, `10ms` y `40ms` ahora produce
+ventanas de captura genuinamente distintas (1.4746 ms, 8.192 ms y 40.796 ms
+reales, medidas por el samplerate que reporta el propio dispositivo).
+
+En el camino se probó — y se descartó — una hipótesis relacionada: que el
+comando *combinado* `SETTRIGGERANDSAMPLERATE` (`0x01`, el que usa sigrok "de
+forma uniforme" para toda la familia 2090/2150/5200, y el que usa
+`HantekDSO` en su `dsoSetTriggerAndSampleRate()`) fuera el correcto acá
+también. Pero la propia documentación de protocolo portada de OpenHantek
+(`src/protocol/bulkcode.h`) aclara que ese comando combinado sólo es válido
+para `MODEL_DSO2090`/`MODEL_DSO2150` — el DSO-5200/5200A usan el par de
+comandos *separados* `CSETTRIGGERORSAMPLERATE` (`0x0c`, sólo samplerate) +
+`ESETTRIGGERORSAMPLERATE` (`0x0e`, sólo bits de disparo), que es justamente
+lo que este port ya enviaba. El problema nunca fue el comando en sí, sino
+los valores que se le mandaban.
+
+## Escalones de ganancia (V/div) — resuelto, umbral de relé equivocado para modelos de 10 bits
+
+Pedir ciertos V/división concretos — 1.6 V o 16 V, los valores a los que
+redondean pedidos "razonables" como "1 V" o "10 V" — dejaba el canal leyendo
+**cero plano**, de forma permanente (no era un problema de asentamiento:
+seguía en cero tras 6+ segundos de capturas continuas), en CH1 y CH2 por
+igual, y se recuperaba en cuanto se pedía *cualquier otro* V/división.
+
+La pista salió del historial de git de un proyecto hermano
+([`OpenHantek6022`](https://github.com/OpenHantek/OpenHantek6022), que en
+su día también dio soporte al DSO-5200): el commit `b935f4e` ("Mostly
+DSO-5200 bugfixes, thanks to Ash", 2010) agrega la explicación que ya
+estaba, sin contexto, en el propio `src/protocol/controlcode.h` de este
+port: *"The limits are `<=` instead of `<` for the 10 bit models, since
+those support voltages up to 10 V"*. El DSO-5200/5200A son justamente eso,
+un modelo de 10 bits — y en algún punto entre ese fix de 2010 y la versión
+de `modelDSO5200.cpp` de la que sale este port, esa rama específica del
+modelo se perdió, dejando sólo la fórmula genérica (de 8 bits)
+`gainID < 3` / `gainID < 6`, que conmuta el relé de atenuación un escalón
+antes de lo debido — justo en los índices 3 y 6, justo donde se veía el
+cero plano. El mismo commit reveló, además, que la tabla de índice de
+ganancia (`kGain[].index`, el valor que se manda por `BulkSetGain`) y la
+tabla de divisores de decodificación (`kVoltageLimit[]`) también habían
+derivado hacia la fórmula genérica en vez de la específica del DSO-5200
+(`gainId % 3`, con una excepción en `gainId == 0`).
+
+Corregidas las tres tablas a la vez (`src/device/dso5200.cpp`, comentarios
+junto a `kGain`/`kVoltageLimit` y dentro de `doSetGain()`), los 9 escalones
+de ganancia dan lecturas reales — verificado capturando en los tres
+escenarios que reprodujeron el síntoma original: cambio de ganancia en
+pleno muestreo sobre CH1, sobre CH2, y ambos canales configurados a un
+escalón antes problemático desde antes de arrancar el muestreo.
 
 ## Protocolo de streaming hacia el visor
 

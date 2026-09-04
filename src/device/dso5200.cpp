@@ -16,6 +16,16 @@
 // drives the equivalent setSamplerate() path instead. Since this tool's whole
 // point is a working `timebase` command, doSetRecordTime() here follows
 // setSamplerate()'s (correct) pattern instead of setRecordTime()'s.
+//
+// A second, bigger deviation found later by testing against real hardware: even with the above
+// fix, changing `timebase` had NO effect on the real captured window - verified empirically
+// (100us and 40ms requests produced byte-for-byte identical raw samples). The root cause was
+// OpenHantek's own continuously-computed SamplerateFast/SamplerateSlow divider - ported faithfully
+// from upstream - being silently ignored by the DSO-5200 for anything but a few coincidental
+// values. The DSO-5200 only understands a fixed table of "magic" 16-bit SamplerateSlow constants;
+// see kSlowTimebaseTable and doSetRecordTime()/applyTimebaseTableEntry() below for the fix and the
+// two independent, hardware-tested sources (sigrok, github.com/Blokkendoos/HantekDSO) that
+// corroborate the exact values.
 
 #include "dso5200.h"
 
@@ -31,11 +41,49 @@
 
 using namespace Hantek;
 
-const Dso5200Control::GainStep Dso5200Control::kGain[9] = {
-    {1, 0.16}, {0, 0.40}, {0, 0.80}, {1, 1.60}, {0, 4.00}, {0, 8.00}, {1, 16.0}, {0, 40.0}, {0, 80.0},
+namespace {
+struct TimebaseEntry {
+    uint8_t fast;
+    uint16_t slow;
 };
 
-const unsigned short Dso5200Control::kVoltageLimit[9] = {368, 454, 908, 368, 454, 908, 368, 454, 908};
+// Register values for CSETTRIGGERORSAMPLERATE (BulkSetSamplerate5200, opcode 0x0c) covering the
+// DSO-5200's ~246us..1.6s timebase steps, small-buffer (10240-sample) variant. This replaces a
+// continuously-computed divider that was found (empirically, against real hardware) to have NO
+// effect on the actual captured window: requesting duration=100us and duration=40ms produced
+// byte-for-byte identical raw samples. These exact values were cross-checked against two
+// independent, hardware-tested reverse-engineered drivers - sigrok's hantek-dso and
+// github.com/Blokkendoos/HantekDSO - which report byte-identical tables, confirming the DSO-5200
+// only understands this fixed set of "magic" constants rather than an arbitrary divider.
+//
+// Also confirmed while investigating this: OpenHantek's own protocol docs (bulkcode.h) say the
+// *combined* SETTRIGGERANDSAMPLERATE bulk command (opcode 0x01, used by HantekDSO's
+// dsoSetTriggerAndSampleRate()) is only valid for MODEL_DSO2090/MODEL_DSO2150 - the DSO-5200/5200A
+// need the *split* CSETTRIGGERORSAMPLERATE (0x0c, this table) + ESETTRIGGERORSAMPLERATE (0x0e,
+// triggerCommand) pair instead, which is what this code already sent. So the fix here is only
+// the register *values*, not the command framing.
+constexpr TimebaseEntry kSlowTimebaseTable[] = {
+    {3, 0xFFFF}, {4, 0xFFFC}, {4, 0xFFF7}, {4, 0xFFE8}, {4, 0xFFCE}, {4, 0xFF9C},
+    {4, 0xFF07}, {4, 0xFE0D}, {4, 0xFC19}, {4, 0xF63D}, {4, 0xEC79}, {4, 0xD8F1},
+};
+constexpr unsigned kSlowTimebaseTableSize = sizeof(kSlowTimebaseTable) / sizeof(kSlowTimebaseTable[0]);
+}  // namespace
+
+// Real bug found testing against hardware, root-caused via openhantek's own git history
+// (OpenHantek6022 checkout, commit b935f4e "Mostly DSO-5200 bugfixes, thanks to Ash", 2010): this
+// port's .index (scalerId, the value written to BulkSetGain) and kVoltageLimit (sampleRange, the
+// decode divisor) columns had drifted from that commit's DSO-5200-specific ("commandVersion==1")
+// mapping, which is *not* a simple repeating pattern - it's `gainId % 3` (1->368, 2->454,
+// default->908) with a special-cased exception at gainId==0 (index=1, limit=184) - somewhere
+// between that 2010 fix and the later modelDSO5200.cpp this port's kGain[].index/kVoltageLimit
+// were derived from, the model-specific table seems to have been lost/regressed back toward the
+// generic (8-bit-model) `gainId % 3` formula. Symptom: gainID 3 read a scaled-wrong-but-nonzero
+// voltage and gainID 6 read a hard, permanent flat 0V - both now match the values below.
+const Dso5200Control::GainStep Dso5200Control::kGain[9] = {
+    {1, 0.16}, {1, 0.40}, {0, 0.80}, {0, 1.60}, {1, 4.00}, {0, 8.00}, {0, 16.0}, {1, 40.0}, {0, 80.0},
+};
+
+const unsigned short Dso5200Control::kVoltageLimit[9] = {184, 368, 454, 908, 368, 454, 908, 368, 454};
 
 Dso5200Control::Dso5200Control(USBDevice *device, bool debugLog) : device(device), debugLog(debugLog) {
     retrieveChannelLevelData();
@@ -187,16 +235,55 @@ bool Dso5200Control::updateSamplerate(unsigned downsamplerValue, bool fastRate) 
     return true;
 }
 
+bool Dso5200Control::applyTimebaseTableEntry(unsigned index, double *windowOut) {
+    const TimebaseEntry &entry = kSlowTimebaseTable[index];
+    const unsigned divider = 2u * (0x10000u - entry.slow) + 4u - entry.fast;
+    const double sr = kSingleMax / divider;
+
+    samplerateCommand.setSamplerateFast(entry.fast);
+    samplerateCommand.setSamplerateSlow(entry.slow);
+    triggerCommand.setFastRate(false);
+
+    bulkCommand(samplerateCommand);
+    bulkCommand(triggerCommand);
+
+    fastRateActive = false;
+    downsampler = divider;
+    samplerateCurrent = sr;
+    if (windowOut) *windowOut = (double)kRecordLengthSingle / sr;
+
+    doSetPretriggerPosition(trigger.position);
+    return true;
+}
+
 bool Dso5200Control::doSetRecordTime(double duration) {
     if (duration <= 0.0) return false;
 
-    const double targetSamplerate = (double)kRecordLengthSingle / duration;
-    const bool fastRate = (usedChannels <= 1) && (targetSamplerate > kSingleMax / kBufferDivider);
+    unsigned bestIndex = 0;
+    double bestWindow = 0.0, bestError = 1e300;
+    for (unsigned i = 0; i < kSlowTimebaseTableSize; ++i) {
+        const TimebaseEntry &entry = kSlowTimebaseTable[i];
+        const unsigned divider = 2u * (0x10000u - entry.slow) + 4u - entry.fast;
+        const double window = (double)kRecordLengthSingle * divider / kSingleMax;
+        const double error = std::abs(std::log(window / duration));
+        if (error < bestError) {
+            bestError = error;
+            bestIndex = i;
+            bestWindow = window;
+        }
+    }
 
-    unsigned downsamplerValue = 0;
-    getBestSamplerate(targetSamplerate, fastRate, false, &downsamplerValue);
+    // The table's fastest entry (index 0) tops out around ~246us of real window in normal
+    // (non-fast-rate) mode. Shorter requests on a single active channel can still be served by
+    // fast-rate mode (kMultiBase/kMultiMax, up to 250 MS/s single-channel) - untouched below.
+    if (bestIndex == 0 && duration < bestWindow && usedChannels <= 1) {
+        const double targetSamplerate = (double)kRecordLengthSingle / duration;
+        unsigned downsamplerValue = 0;
+        getBestSamplerate(targetSamplerate, true, false, &downsamplerValue);
+        return updateSamplerate(downsamplerValue, true);
+    }
 
-    return updateSamplerate(downsamplerValue, fastRate);
+    return applyTimebaseTableEntry(bestIndex, nullptr);
 }
 
 bool Dso5200Control::doSetGain(unsigned channel, double gain) {
@@ -206,8 +293,23 @@ bool Dso5200Control::doSetGain(unsigned channel, double gain) {
         if (kGain[gainID].voltsPerDiv >= gain) break;
 
     gainCommand.setGain(channel, kGain[gainID].index);
-    relaysCommand.setBelow1V(channel, gainID < 3);
-    relaysCommand.setBelow100mV(channel, gainID < 6);
+
+    // Real bug found testing against hardware: any gain change that also flipped the below1V/
+    // below100mV attenuator relay (e.g. requesting 1.6V/div or 16V/div, which round up from the
+    // previous step and cross a relay boundary) left the channel reading a flat 0V, permanently
+    // until a *different* gain step was requested - confirmed NOT a settling-time issue (still
+    // flat after 6+ seconds) and NOT a command-ordering issue (reordering offset/relay changed
+    // nothing). Root cause found in openhantek's own git history (OpenHantek6022 checkout,
+    // commit b935f4e "Mostly DSO-5200 bugfixes, thanks to Ash", 2010): the DSO-5200/5200A are
+    // "10 bit models" whose relay thresholds must use <= instead of < (the commit's own
+    // CONTROL_SETRELAYS doc comment: "The limits are <= instead of < for the 10 bit models,
+    // since those support voltages up to 10 V"), with the comparison boundary at GAIN_1V/
+    // GAIN_100MV (indices 6 and 3 in that commit's 9-step Gain enum, the same 9-step table this
+    // port's kGain[] uses) rather than at the plain gainID<3/gainID<6 used by the *generic*
+    // (8-bit-model) formula this port had copied - which switches each relay one gain step too
+    // early, exactly at gainID 3 and 6, exactly where the flat-0V readings were observed.
+    relaysCommand.setBelow1V(channel, gainID <= 6);
+    relaysCommand.setBelow100mV(channel, gainID <= 3);
 
     voltage[channel].gain = gainID;
 

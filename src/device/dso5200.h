@@ -66,6 +66,7 @@ class Dso5200Control : public IDsoSource {
     double getBestSamplerate(double samplerate, bool fastRate, bool maximum, unsigned *downsampler) const;
     bool updateSamplerate(unsigned downsampler, bool fastRate);
     bool doSetRecordTime(double duration);
+    bool applyTimebaseTableEntry(unsigned index, double *windowOut);
     bool doSetGain(unsigned channel, double gain);
     bool doSetOffset(unsigned channel, double offset);
     bool doSetTriggerLevel(unsigned channel, double level);
