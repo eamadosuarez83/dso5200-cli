@@ -180,6 +180,24 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
             return;
         }
         std::cout << "offset canal " << tokens[1] << " = " << tokens[2] << "\n";
+    } else if (cmd == "rawgaintest") {
+        // TEMP TEST command: reconstructing the real V/div table (GainBits + relay decade).
+        if (tokens.size() != 5) {
+            std::cout << "Uso: rawgaintest <1|2> <gainBits 0-3> <b1v 0|1> <b100 0|1>\n";
+            return;
+        }
+        auto channel = parseChannelIndex(tokens[1]);
+        auto gainBits = parseNumber(tokens[2]);
+        auto b1v = parseNumber(tokens[3]);
+        auto b100 = parseNumber(tokens[4]);
+        auto *dso = dynamic_cast<Dso5200Control *>(&source);
+        if (!channel || !gainBits || !b1v || !b100 || !dso ||
+            !dso->debugSetRawGain((unsigned)*channel, (uint8_t)*gainBits, *b1v != 0, *b100 != 0)) {
+            std::cout << "rawgaintest fallo.\n";
+            return;
+        }
+        std::cout << "rawgain canal " << tokens[1] << " gainBits=" << tokens[2] << " b1v=" << tokens[3]
+                  << " b100=" << tokens[4] << "\n";
     } else {
         std::cout << "Comando desconocido: " << cmd << " (escribe 'help')\n";
     }

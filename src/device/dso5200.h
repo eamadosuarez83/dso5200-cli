@@ -49,6 +49,9 @@ class Dso5200Control : public IDsoSource {
         return doSetOffset(channel, offset);
     }
 
+    // TEMP TEST: reconstructing the real V/div table (GainBits + relay decade), bypassing kGain.
+    bool debugSetRawGain(unsigned channel, uint8_t gainBits, bool below1V, bool below100mV);
+
   private:
     struct VoltageSettings {
         double offset = 0.0;

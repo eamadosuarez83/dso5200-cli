@@ -100,7 +100,7 @@ constexpr unsigned kSlowTimebaseTableSize = sizeof(kSlowTimebaseTable) / sizeof(
 // generic (8-bit-model) `gainId % 3` formula. Symptom: gainID 3 read a scaled-wrong-but-nonzero
 // voltage and gainID 6 read a hard, permanent flat 0V - both now match the values below.
 const Dso5200Control::GainStep Dso5200Control::kGain[9] = {
-    {1, 0.16}, {1, 0.40}, {0, 0.80}, {0, 1.60}, {1, 4.00}, {0, 8.00}, {0, 16.0}, {1, 40.0}, {0, 80.0},
+    {1, 0.02}, {1, 0.05}, {0, 0.1}, {0, 0.2}, {1, 0.5}, {0, 1.0}, {0, 2.0}, {1, 5.0}, {0, 10.0},
 };
 
 const unsigned short Dso5200Control::kVoltageLimit[9] = {184, 368, 454, 908, 368, 454, 908, 368, 454};
@@ -327,22 +327,24 @@ bool Dso5200Control::doSetGain(unsigned channel, double gain) {
 
     gainCommand.setGain(channel, kGain[gainID].index);
 
-    // Real bug found testing against hardware: any gain change that also flipped the below1V/
-    // below100mV attenuator relay (e.g. requesting 1.6V/div or 16V/div, which round up from the
-    // previous step and cross a relay boundary) left the channel reading a flat 0V, permanently
-    // until a *different* gain step was requested - confirmed NOT a settling-time issue (still
-    // flat after 6+ seconds) and NOT a command-ordering issue (reordering offset/relay changed
-    // nothing). Root cause found in openhantek's own git history (OpenHantek6022 checkout,
-    // commit b935f4e "Mostly DSO-5200 bugfixes, thanks to Ash", 2010): the DSO-5200/5200A are
-    // "10 bit models" whose relay thresholds must use <= instead of < (the commit's own
-    // CONTROL_SETRELAYS doc comment: "The limits are <= instead of < for the 10 bit models,
-    // since those support voltages up to 10 V"), with the comparison boundary at GAIN_1V/
-    // GAIN_100MV (indices 6 and 3 in that commit's 9-step Gain enum, the same 9-step table this
-    // port's kGain[] uses) rather than at the plain gainID<3/gainID<6 used by the *generic*
-    // (8-bit-model) formula this port had copied - which switches each relay one gain step too
-    // early, exactly at gainID 3 and 6, exactly where the flat-0V readings were observed.
-    relaysCommand.setBelow1V(channel, gainID <= 6);
-    relaysCommand.setBelow100mV(channel, gainID <= 3);
+    // Real bug found testing against hardware, in two stages. First (2010 OpenHantek6022 commit
+    // b935f4e "Mostly DSO-5200 bugfixes, thanks to Ash"): the DSO-5200/5200A are "10 bit models"
+    // whose relay thresholds must use <= instead of < (that commit's own CONTROL_SETRELAYS doc
+    // comment: "The limits are <= instead of < for the 10 bit models, since those support voltages
+    // up to 10 V") - fixed the permanent flat-0V readings this port had at certain gain steps.
+    // Second, much later: the *voltsPerDiv* values in kGain[] above were simply wrong - this
+    // model's real, hardware/software-confirmed V/div steps are 10V/5V/2V/1V/500mV/200mV/100mV/
+    // 50mV/20mV/10mV (a standard 1-2-5 sequence), not the 0.16V..80V table this port had.
+    // Reconstructed by comparing a USB capture of the official Windows software's gain/relay
+    // commands against the real oscilloscope's audible relay clicks (which only happen at the
+    // 10V/1V/100mV boundaries - everything else within a decade is a pure display-side scale
+    // factor with no hardware command at all, confirmed by the official software sending zero
+    // additional USB traffic when moving between, e.g., 10V and 5V). That gives exactly 3 relay
+    // "decades" of 3 steps each (10mV has no calibrated step of its own on this unit and reuses
+    // 20mV's), matching this table's index grouping 0-2/3-5/6-8 - hence the relay threshold below
+    // is a contiguous range check instead of the single boundary this file used to have.
+    relaysCommand.setBelow1V(channel, gainID >= 3);
+    relaysCommand.setBelow100mV(channel, gainID >= 3 && gainID <= 5);
 
     voltage[channel].gain = gainID;
 
@@ -350,6 +352,20 @@ bool Dso5200Control::doSetGain(unsigned channel, double gain) {
     device->controlWrite(&relaysCommand);
 
     return doSetOffset(channel, voltage[channel].offset);
+}
+
+bool Dso5200Control::debugSetRawGain(unsigned channel, uint8_t gainBits, bool below1V, bool below100mV) {
+    std::lock_guard<std::mutex> lock(ioMutex);
+    gainCommand.setGain(channel, gainBits);
+    relaysCommand.setBelow1V(channel, below1V);
+    relaysCommand.setBelow100mV(channel, below100mV);
+    bulkCommand(gainCommand);
+    int rc = device->controlWrite(&relaysCommand);
+    // Re-center the offset DAC after any gain/relay change, same as the real doSetGain() path -
+    // otherwise the offset stays at whatever raw value the *previous* combo left it at, which can
+    // clip/saturate the new one and make amplitude comparisons meaningless.
+    doSetOffset(channel, 0.5);
+    return rc >= 0;
 }
 
 bool Dso5200Control::doSetOffset(unsigned channel, double offset) {

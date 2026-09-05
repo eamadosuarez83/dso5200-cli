@@ -173,13 +173,18 @@ los trata igual. Si lo ves en una copia vieja del repo, actualizá
 `src/device/dso5200.cpp` (ver "Timebase lento sólo capturaba un flanco" en
 el README para el detalle técnico completo).
 
-**CH2 lee cero plano en 4V/div o 40V/div específicamente**
-Bug real, todavía sin resolver. Pasa sólo en esos dos escalones de CH2 (CH1
-funciona bien en los mismos); los datos de calibración que reporta el
-equipo para CH2 ahí son inusualmente anchos. Si necesitás ver señal en CH2
-ahora mismo, usá cualquier otro V/división (0.16 a 1.6, o 8 a 16, o 80)
-mientras se investiga — ver "CH2 lee cero plano" en el README para el
-detalle técnico y el estado de la investigación.
+**Los V/división que acepta `volts` cambiaron**
+La tabla de V/división de este port estaba mal desde el principio — los
+valores reales de este hardware son 10V, 5V, 2V, 1V, 500mV, 200mV, 100mV,
+50mV, 20mV y 10mV (no 0.16V..80V como antes). `volts <1|2> <V/div>` ahora
+redondea al escalón real más cercano de esa lista.
+
+**La escala de voltaje no es consistente en todos los escalones**
+Bug real, todavía sin resolver — depende de `gainId` y afecta a ambos
+canales, no sólo a un valor concreto. Si la amplitud se ve claramente mal
+en algún escalón, no es tu configuración; es una investigación en curso.
+Ver "Tabla de V/división corregida" en el README para el detalle técnico y
+el estado de la investigación.
 
 ## 5. Uso normal
 

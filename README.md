@@ -348,9 +348,59 @@ aparece la periodicidad correcta (51 ciclos, coincidiendo con CH1), pero
 **la escala de voltaje nunca se estabiliza** en un resultado limpio en
 todo el rango 0.2-0.5 probado — descarta que el fix sea tan simple como
 cambiar el offset por omisión a 0.5 (ese cambio genérico ya se probó y
-rompió otros escalones, ver el bug de posición de disparo). Sigue abierto;
-ver `docs/GUIA_ESTUDIO.md` (Bloque 6, séptimo caso real) para el detalle
-completo y los próximos pasos sugeridos.
+rompió otros escalones, ver el bug de posición de disparo).
+
+**Actualización**: "4V" y "40V" nunca fueron escalones reales de este
+hardware — ver "Tabla de V/división corregida" abajo. El síntoma de
+saturación en sí resultó ser más general (depende de `gainId`, no
+exclusivo de esos dos valores viejos); sigue siendo el próximo bug a
+resolver, ahora sobre la tabla ya corregida.
+
+## Tabla de V/división corregida — 10V a 10mV reales, no 0.16V a 80V
+
+Investigando el bug de arriba surgió una pregunta más básica: ¿de dónde
+salió la tabla `kGain[]` (0.16V..80V) que este port traía desde el
+principio? Pidiéndole al usuario que capturara el tráfico USB del software
+oficial cambiando de V/división en Windows, y que anotara en qué valores
+el relé de atenuación hace clic audible en el osciloscopio real, apareció
+la respuesta: los V/división reales de este equipo son **10V, 5V, 2V, 1V,
+500mV, 200mV, 100mV, 50mV, 20mV y 10mV** (secuencia 1-2-5 estándar), y **el
+relé sólo hace clic al entrar a 10V, 1V y 100mV** — los demás pasos no
+generan ningún tráfico USB adicional. Como bien intuyó el usuario:
+*"supongo que hace un escalado matemático... es interno por software"* —
+dentro de cada década, el software oficial sólo reinterpreta la misma
+lectura de hardware, sin tocar relés ni registros de ganancia.
+
+Esto encaja con algo que `kGain[]` ya tenía sin aprovechar del todo: separa
+un campo `index` (lo que se manda al hardware) de un campo `voltsPerDiv`
+(usado sólo en la fórmula de conversión de software) — exactamente el
+mecanismo que hacía falta. Y la tabla `kVoltageLimit[]`/`kGain[].index` ya
+corregida en un bug anterior seguía un patrón `gainId % 3` (con una
+excepción en `gainId == 0`) que sólo tiene sentido si el hardware agrupa el
+multiplicador fino (1×/2×/5×) en 3 décadas contiguas de 3 pasos — es decir,
+esas dos tablas **ya estaban bien**; sólo las *etiquetas* `voltsPerDiv`
+estaban mal.
+
+Se reescribió `kGain[9]` con las etiquetas correctas en el mismo orden de
+`gainId` (`0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0` — el décimo paso,
+10mV, no tiene calibración propia y reutiliza la de 20mV, consistente con
+que tampoco hace clic de relé) y se corrigió el umbral de relé de un único
+punto de corte a un rango contiguo (`below1V = gainID >= 3`,
+`below100mV = gainID >= 3 && gainID <= 5`). Probado en vivo contra el
+osciloscopio real con la señal CAL: los 5 pasos donde CAL cabe en rango
+(0.5V a 10V) muestran periodicidad correcta y consistente (51-52 ciclos,
+igual que la referencia ya validada). Los pasos más sensibles (0.02V-0.2V)
+muestran forma errática, pero es esperable — CAL es demasiado grande para
+esos rangos y satura el ADC, no es un síntoma de bug nuevo.
+
+Lo que esto **no** resolvió: la escala de amplitud sigue siendo
+inconsistente entre pasos, incluso en las décadas donde CAL cabe bien —
+es el mismo bug de offset sin centrar de arriba, ahora confirmado como más
+general (depende de `gainId` en ambos canales, no sólo de los dos índices
+viejos). Se agregó otro comando de depuración temporal
+(`rawgaintest <canal> <gainBits> <b1v> <b100>`) para seguir probando esto
+sin recompilar. Ver `docs/GUIA_ESTUDIO.md` (Bloque 6, octavo caso real)
+para el detalle completo.
 
 ## Protocolo de streaming hacia el visor
 

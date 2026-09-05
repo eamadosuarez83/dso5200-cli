@@ -780,15 +780,15 @@ El resultado no es un array de doubles suelto — es un `CaptureFrame`
 > podría ser una particularidad real de la calibración de fábrica de CH2 en
 > este equipo específico, no un bug de software con un fix limpio evidente.
 >
-> **Sigue sin resolverse.** Próximos pasos sugeridos: (1) revisar si
-> `kVoltageLimit`/`kGain` (que sí tienen un mapeo `gainId % 3` específico
-> del DSO-5200, distinto del genérico — ver cuarto caso real, Bloque 4)
-> deberían aplicarse también a cómo se *interpreta* `offsetLimit`, en vez de
-> indexarlo directo por `gainId`; (2) comparar contra una captura USB real
-> de Windows cambiando a esos mismos V/división en CH2, para ver qué offset
-> manda el software oficial en ese caso concreto; (3) aceptar un valor de
-> offset fijo encontrado empíricamente sólo para esos dos escalones de CH2,
-> si no aparece una explicación más limpia.
+> **Actualización (octavo caso real, abajo): "4V/div" y "40V/div" nunca
+> fueron valores reales de este hardware.** Los 9-10 pasos reales del
+> DSO-5200 son 10V/5V/2V/1V/500mV/200mV/100mV/50mV/20mV/10mV, no
+> 0.16V..80V — con la tabla corregida, `4.0` y `40.0` ya no son valores
+> pedibles en absoluto (se redondean al escalón real más cercano). El
+> síntoma en sí (saturación/lectura plana con offset por omisión en ciertos
+> escalones) resultó ser **más general** de lo que parecía aquí, no
+> exclusivo de esos dos índices - ver el octavo caso real para el estado
+> actualizado.
 
 ### Para comprobar que lo entendiste
 
@@ -800,6 +800,65 @@ El resultado no es un array de doubles suelto — es un `CaptureFrame`
   dos?
 - Si `voltage[channel].offsetReal` estuviera mal calculado (Bloque 4), ¿en
   qué parte exacta de esta fórmula se notaría el error?
+
+> **Octavo caso real: la tabla de V/división completa (`kGain[]`) tenía los
+> valores equivocados desde el principio - 0.16V..80V nunca fueron pasos
+> reales de este hardware.** Investigando el séptimo caso real (CH2 en
+> "4V"/"40V"), surgió una pregunta más básica: ¿de dónde salieron esos
+> valores concretos? Pidiéndole al usuario que capturara el tráfico USB del
+> software oficial mientras cambiaba de V/división en Windows, y que
+> anotara en qué valores el relé de atenuación hace clic audible en el
+> osciloscopio real, apareció la respuesta: **los V/división reales de este
+> equipo son 10V, 5V, 2V, 1V, 500mV, 200mV, 100mV, 50mV, 20mV y 10mV** (una
+> secuencia 1-2-5 estándar), y **el relé sólo hace clic al entrar a 10V, 1V
+> y 100mV** - los demás pasos (5V, 2V, 500mV, 200mV, 50mV, 20mV, y 10mV) no
+> generan tráfico USB adicional en absoluto al cambiarlos. La intuición
+> correcta del usuario: *"supongo que hace un escalado matemático... por
+> eso no vas a encontrar cambios en comandos USB, es interno por
+> software"* - dentro de cada década, el software oficial sólo cambia cómo
+> *interpreta* la misma lectura de hardware, sin tocar ningún relé ni
+> registro de ganancia.
+>
+> Esto encaja perfectamente con algo que este port ya tenía, sin haberlo
+> aprovechado del todo: `kGain[]` ya separa un campo `index` (lo que se
+> manda al hardware, `BulkSetGain`) de un campo `voltsPerDiv` (usado sólo en
+> software, en la fórmula de conversión de Bloque 6) - exactamente el
+> mecanismo que hacía falta. Y la tabla `kVoltageLimit[]`/`kGain[].index`
+> que ya se había corregido en el cuarto caso real seguía un patrón
+> `gainId % 3` con una excepción en `gainId == 0` - un patrón que sólo tiene
+> sentido si el hardware real cicla el multiplicador fino (1×/2×/5×) cada
+> paso, agrupado en 3 "décadas" contiguas de 3 pasos cada una. Es decir: la
+> tabla de calibración (`kVoltageLimit`) y el campo `index` **ya estaban
+> bien** para el hardware real - lo único que estaba mal eran las
+> *etiquetas* `voltsPerDiv` que este port le había puesto a cada índice.
+>
+> Reescribiendo `kGain[9]` con las etiquetas correctas en el mismo orden de
+> `gainId` (`0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0` - nueve pasos;
+> el décimo, 10mV, no tiene calibración propia en este equipo y reutiliza la
+> de 20mV, consistente con que tampoco hace clic de relé) y corrigiendo el
+> umbral de relé de un único punto de corte a un rango contiguo
+> (`below1V = gainID >= 3`, `below100mV = gainID >= 3 && gainID <= 5`, en
+> vez del punto de corte único que tenía antes), se probó en vivo contra el
+> osciloscopio real con la señal CAL: los 5 pasos donde CAL cabe en rango
+> (0.5V a 10V) muestran la periodicidad correcta (51-52 ciclos, igual que
+> la referencia ya validada) de forma consistente. Los pasos más sensibles
+> (0.02V-0.2V) muestran forma errática, pero es lo esperable - CAL es
+> demasiado grande para esos rangos y satura el ADC, no es un síntoma de
+> bug.
+>
+> **Lo que este caso NO resolvió**: la escala de amplitud (voltios) sigue
+> sin ser consistente entre pasos, incluso en las décadas donde CAL cabe
+> bien - esto es el mismo bug de offset sin centrar del séptimo caso real,
+> confirmado ahora **más general** de lo que parecía: no es exclusivo de
+> los antiguos índices "4V"/"40V", aparece de forma dependiente del
+> `gainId` en ambos canales. Con la tabla ya corregida, ese sigue siendo el
+> próximo bug a resolver.
+> Moraleja: cuando una tabla de calibración tiene un patrón matemático raro
+> (`gainId % 3`) que "funciona" pero no explica *por qué* existe ese
+> patrón, vale la pena preguntarse qué estructura de hardware real lo
+> produciría - en este caso, tres décadas de tres pasos cada una es una
+> explicación mucho más simple que "un mapeo arbitrario que hay que
+> memorizar".
 
 ---
 
