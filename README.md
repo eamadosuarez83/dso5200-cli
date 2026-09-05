@@ -393,14 +393,29 @@ igual que la referencia ya validada). Los pasos más sensibles (0.02V-0.2V)
 muestran forma errática, pero es esperable — CAL es demasiado grande para
 esos rangos y satura el ADC, no es un síntoma de bug nuevo.
 
-Lo que esto **no** resolvió: la escala de amplitud sigue siendo
-inconsistente entre pasos, incluso en las décadas donde CAL cabe bien —
-es el mismo bug de offset sin centrar de arriba, ahora confirmado como más
-general (depende de `gainId` en ambos canales, no sólo de los dos índices
-viejos). Se agregó otro comando de depuración temporal
+Se agregó otro comando de depuración temporal
 (`rawgaintest <canal> <gainBits> <b1v> <b100>`) para seguir probando esto
-sin recompilar. Ver `docs/GUIA_ESTUDIO.md` (Bloque 6, octavo caso real)
-para el detalle completo.
+sin recompilar.
+
+**Seguimiento (un día después)**: la aparente "escala de amplitud
+inconsistente entre pasos" resultó **no ser un bug nuevo**. Barriendo el
+offset en los 9 pasos reales se confirmó que el offset en sí funciona
+perfectamente (el delta medido se mantiene exactamente constante al
+variarlo, sólo cambia dónde se centra la traza). Lo que parecía
+sospechoso — 0.2V y 2V/división dando un delta mucho más chico que sus
+vecinos con el offset de fábrica — se explicó deshaciendo la conversión de
+voltios a código crudo del ADC (`raw = volts_delta * limit / gainStep`):
+en 0.2V, 0.5V y 1V/división el resultado da exactamente **1023** (el ADC
+de 10 bits saturado por completo en ambas puntas) para los tres — la señal
+CAL es simplemente demasiado grande para esa década entera, igual que ya
+sabíamos que pasaba en 0.02V-0.1V. En 2V, 5V y 10V/división, en cambio, los
+tres dan el mismo código crudo entre sí (~237-238) una vez que el offset
+está razonablemente puesto — prueba de que esa década sí está bien
+calibrada de punta a punta. El único bug real que sigue pendiente es el de
+offset por omisión sin centrar (arriba); para probarlo bien hace falta una
+señal cuya amplitud quepa dentro del rango a probar, no CAL saturando por
+los dos extremos de la tabla. Ver `docs/GUIA_ESTUDIO.md` (Bloque 6, octavo
+caso real) para el detalle completo.
 
 ## Protocolo de streaming hacia el visor
 

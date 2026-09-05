@@ -846,17 +846,49 @@ El resultado no es un array de doubles suelto — es un `CaptureFrame`
 > demasiado grande para esos rangos y satura el ADC, no es un síntoma de
 > bug.
 >
-> **Lo que este caso NO resolvió**: la escala de amplitud (voltios) sigue
-> sin ser consistente entre pasos, incluso en las décadas donde CAL cabe
-> bien - esto es el mismo bug de offset sin centrar del séptimo caso real,
-> confirmado ahora **más general** de lo que parecía: no es exclusivo de
-> los antiguos índices "4V"/"40V", aparece de forma dependiente del
-> `gainId` en ambos canales. Con la tabla ya corregida, ese sigue siendo el
-> próximo bug a resolver.
-> Moraleja: cuando una tabla de calibración tiene un patrón matemático raro
-> (`gainId % 3`) que "funciona" pero no explica *por qué* existe ese
-> patrón, vale la pena preguntarse qué estructura de hardware real lo
-> produciría - en este caso, tres décadas de tres pasos cada una es una
+> **Seguimiento (misma investigación, un día después): la "escala de
+> amplitud inconsistente" no era un bug nuevo, era CAL saturando algunos
+> rangos.** El plan original era barrer el offset en los 9 pasos reales
+> para ver si el offset por omisión (0.0) seguía causando saturación de
+> forma más general. El barrido en sí confirmó algo tranquilizador: el
+> offset **funciona perfectamente** en la inmensa mayoría de los casos - al
+> variarlo, el delta (amplitud pico a pico medida) se mantiene *exactamente
+> constante*, sólo cambia dónde se centra la traza verticalmente. Eso ya
+> descarta que el offset "distorsione" la lectura.
+>
+> Lo que sí parecía sospechoso al principio: en 0.2V/div y 2V/div (los dos
+> primeros pasos de cada década) el delta salía mucho más chico que en sus
+> vecinos (1V, 10V) con el offset por omisión. Pero convirtiendo el delta
+> medido *de vuelta* a código crudo del ADC (`raw = volts_delta * limit /
+> gainStep`, invirtiendo la fórmula de conversión del Bloque 6) apareció la
+> explicación real: en 0.2V, 0.5V y 1V/división, el resultado da
+> exactamente **1023** - el ADC de 10 bits completamente saturado en las
+> dos puntas - para los tres. Es decir, la señal CAL real es simplemente
+> demasiado grande para esa década entera (igual que ya sabíamos que pasa
+> en 0.02V-0.1V/división), no un bug de escala. En 2V, 5V y 10V/división,
+> en cambio, los tres dan el mismo código crudo entre sí (~237-238) una vez
+> que el offset está razonablemente puesto - la prueba de que esa década
+> **sí** está bien calibrada de punta a punta. Lo que parecía "un índice
+> roto" (2V con el offset de fábrica) era sólo que ese offset por omisión
+> no centraba bien *esa señal en particular* ahí - normal en cualquier
+> osciloscopio real, se corrige ajustando la posición vertical.
+>
+> **Conclusión**: no hay un bug nuevo de escala de amplitud. El único bug
+> real que queda pendiente sigue siendo el de offset por omisión sin
+> centrar (séptimo caso real) - y para probarlo bien hace falta una señal
+> cuya amplitud quepa claramente dentro del rango que se quiere probar, no
+> CAL saturando por los dos extremos de la tabla.
+> Moraleja: antes de declarar "esto está mal calibrado" comparando números
+> ya convertidos a voltios entre escalas muy distintas, conviene deshacer
+> la conversión y mirar el código crudo del ADC - un valor de exactamente
+> el máximo representable (1023 en 10 bits) es la huella digital de "esto
+> se saturó", no de "esto está mal escalado".
+>
+> Moraleja adicional del caso original: cuando una tabla de calibración
+> tiene un patrón matemático raro (`gainId % 3`) que "funciona" pero no
+> explica *por qué* existe ese patrón, vale la pena preguntarse qué
+> estructura de hardware real lo produciría - en este caso, tres décadas de
+> tres pasos cada una es una
 > explicación mucho más simple que "un mapeo arbitrario que hay que
 > memorizar".
 

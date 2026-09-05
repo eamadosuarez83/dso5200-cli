@@ -179,12 +179,15 @@ valores reales de este hardware son 10V, 5V, 2V, 1V, 500mV, 200mV, 100mV,
 50mV, 20mV y 10mV (no 0.16V..80V como antes). `volts <1|2> <V/div>` ahora
 redondea al escalón real más cercano de esa lista.
 
-**La escala de voltaje no es consistente en todos los escalones**
-Bug real, todavía sin resolver — depende de `gainId` y afecta a ambos
-canales, no sólo a un valor concreto. Si la amplitud se ve claramente mal
-en algún escalón, no es tu configuración; es una investigación en curso.
-Ver "Tabla de V/división corregida" en el README para el detalle técnico y
-el estado de la investigación.
+**La amplitud se ve chica o rara en un escalón concreto**
+Antes de sospechar un bug: revisá si tu señal realmente cabe en ese rango.
+Investigando esto se confirmó que "amplitudes inconsistentes entre
+escalones" casi siempre es la señal de prueba saturando el rango elegido
+(el ADC se satura igual en 1023 códigos, sin importar qué V/división
+uses), no un problema de calibración. El único bug real pendiente es que
+la posición vertical (offset) no siempre arranca centrada por omisión —
+se corrige ajustándola, igual que en cualquier osciloscopio real. Ver
+"Tabla de V/división corregida" en el README para el detalle técnico.
 
 ## 5. Uso normal
 
