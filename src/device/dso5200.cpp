@@ -89,21 +89,34 @@ constexpr TimebaseEntry kSlowTimebaseTable[] = {
 constexpr unsigned kSlowTimebaseTableSize = sizeof(kSlowTimebaseTable) / sizeof(kSlowTimebaseTable[0]);
 }  // namespace
 
-// Real bug found testing against hardware, root-caused via openhantek's own git history
-// (OpenHantek6022 checkout, commit b935f4e "Mostly DSO-5200 bugfixes, thanks to Ash", 2010): this
-// port's .index (scalerId, the value written to BulkSetGain) and kVoltageLimit (sampleRange, the
-// decode divisor) columns had drifted from that commit's DSO-5200-specific ("commandVersion==1")
-// mapping, which is *not* a simple repeating pattern - it's `gainId % 3` (1->368, 2->454,
-// default->908) with a special-cased exception at gainId==0 (index=1, limit=184) - somewhere
-// between that 2010 fix and the later modelDSO5200.cpp this port's kGain[].index/kVoltageLimit
-// were derived from, the model-specific table seems to have been lost/regressed back toward the
-// generic (8-bit-model) `gainId % 3` formula. Symptom: gainID 3 read a scaled-wrong-but-nonzero
-// voltage and gainID 6 read a hard, permanent flat 0V - both now match the values below.
+// Real bug found testing against hardware, superseding the `gainId % 3` table below (kept in git
+// history, not worth re-narrating here): the previous kGain[]/kVoltageLimit[] table came from the
+// generic 8-bit-model formula and was never actually re-derived for this device from first
+// principles. Direct hardware testing (rawgaintest debug command, see command_parser.cpp) against
+// a real DSO-5200A found only 3 distinct analog gain states exist in total (not 9, and not the
+// `gainId%3`-implied 0-2/3-5/6-8 grouping) - `below1V`/`below100mV` behave as a 2-bit "how many are
+// set" gain-level selector, not two independent range thresholds, and the `gainBits` field written
+// via BulkSetGain (kGain[].index) has *zero* measurable effect on amplitude (tested 0-3 at a fixed
+// relay state) - it's left at 0 uniformly below since it does not appear to control front-end gain
+// on this device.
+//
+// The 3 real hardware groups, by relay state and measured gain (raw ADC counts per real input
+// volt, with a 2Vpp/1kHz reference signal, direct-connected except where noted):
+//   below1V=0,below100mV=0 -> 2V/5V/10V   : ~22 counts/V  (direct)
+//   below1V=1,below100mV=0 -> 200mV/500mV/1V : ~112 counts/V (direct)
+//   below1V=1,below100mV=1 -> 20mV/50mV/100mV : ~690 counts/V (derived via the below1V=1,below100mV=0
+//     group measured through the same x10 probe, ratio 228/37=6.16x - this cancels the probe's own
+//     attenuation factor, so it doesn't depend on the probe actually being exactly 10x)
+//
+// Within a hardware-identical group, the display formula (see convertRawDataToSamples() below)
+// needs `limit` proportional to `voltsPerDiv`, not constant - that's what makes changing V/div
+// within a decade correctly rescale the trace on screen despite the raw ADC data being unchanged.
+// So kVoltageLimit[gainId] = countsPerVolt(group) * voltsPerDiv(gainId).
 const Dso5200Control::GainStep Dso5200Control::kGain[9] = {
-    {1, 0.02}, {1, 0.05}, {0, 0.1}, {0, 0.2}, {1, 0.5}, {0, 1.0}, {0, 2.0}, {1, 5.0}, {0, 10.0},
+    {0, 0.02}, {0, 0.05}, {0, 0.1}, {0, 0.2}, {0, 0.5}, {0, 1.0}, {0, 2.0}, {0, 5.0}, {0, 10.0},
 };
 
-const unsigned short Dso5200Control::kVoltageLimit[9] = {184, 368, 454, 908, 368, 454, 908, 368, 454};
+const unsigned short Dso5200Control::kVoltageLimit[9] = {14, 35, 69, 22, 56, 112, 44, 110, 220};
 
 Dso5200Control::Dso5200Control(USBDevice *device, bool debugLog) : device(device), debugLog(debugLog) {
     retrieveChannelLevelData();
@@ -327,24 +340,18 @@ bool Dso5200Control::doSetGain(unsigned channel, double gain) {
 
     gainCommand.setGain(channel, kGain[gainID].index);
 
-    // Real bug found testing against hardware, in two stages. First (2010 OpenHantek6022 commit
-    // b935f4e "Mostly DSO-5200 bugfixes, thanks to Ash"): the DSO-5200/5200A are "10 bit models"
-    // whose relay thresholds must use <= instead of < (that commit's own CONTROL_SETRELAYS doc
-    // comment: "The limits are <= instead of < for the 10 bit models, since those support voltages
-    // up to 10 V") - fixed the permanent flat-0V readings this port had at certain gain steps.
-    // Second, much later: the *voltsPerDiv* values in kGain[] above were simply wrong - this
-    // model's real, hardware/software-confirmed V/div steps are 10V/5V/2V/1V/500mV/200mV/100mV/
-    // 50mV/20mV/10mV (a standard 1-2-5 sequence), not the 0.16V..80V table this port had.
-    // Reconstructed by comparing a USB capture of the official Windows software's gain/relay
-    // commands against the real oscilloscope's audible relay clicks (which only happen at the
-    // 10V/1V/100mV boundaries - everything else within a decade is a pure display-side scale
-    // factor with no hardware command at all, confirmed by the official software sending zero
-    // additional USB traffic when moving between, e.g., 10V and 5V). That gives exactly 3 relay
-    // "decades" of 3 steps each (10mV has no calibrated step of its own on this unit and reuses
-    // 20mV's), matching this table's index grouping 0-2/3-5/6-8 - hence the relay threshold below
-    // is a contiguous range check instead of the single boundary this file used to have.
-    relaysCommand.setBelow1V(channel, gainID >= 3);
-    relaysCommand.setBelow100mV(channel, gainID >= 3 && gainID <= 5);
+    // Real bug found testing against hardware: the audible relay clicks happen entering 100mV, 1V
+    // and 10V (between gainID 1-2, 4-5, 7-8), one position earlier than the previous below1V/
+    // below100mV thresholds assumed (gainID>=3 boundary, i.e. between 2-3 and 5-6) - so gainID==2
+    // (100mV) was getting the *wrong* relay state entirely (same as 20mV/50mV instead of its own
+    // group), not just a wrong calibration constant. Direct hardware testing (rawgaintest, see the
+    // kGain[]/kVoltageLimit[] comment above) confirmed the corrected grouping and also found
+    // below1V/below100mV behave as a 2-bit "how many are set" gain-level selector (0 set = lowest
+    // gain, both set = highest), not two independent thresholds - hence the two checks below are
+    // both keyed off contiguous ranges ending at the *correct* group boundaries (gainID<=2 and
+    // gainID<=5), not the old off-by-one ones.
+    relaysCommand.setBelow1V(channel, gainID <= 5);
+    relaysCommand.setBelow100mV(channel, gainID <= 2);
 
     voltage[channel].gain = gainID;
 
