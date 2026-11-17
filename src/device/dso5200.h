@@ -52,6 +52,13 @@ class Dso5200Control : public IDsoSource {
     // TEMP TEST: reconstructing the real V/div table (GainBits + relay decade), bypassing kGain.
     bool debugSetRawGain(unsigned channel, uint8_t gainBits, bool below1V, bool below100mV);
 
+    // CALIBRACIÓN: activa el volcado de estadísticas del ADC crudo (cuentas puras, sin
+    // conversión a volts) para el canal indicado, impreso a stderr en cada frame.
+    void debugSetRawStats(bool enabled, unsigned channel) {
+        rawStatsEnabled = enabled;
+        rawStatsChannel = channel;
+    }
+
   private:
     struct VoltageSettings {
         double offset = 0.0;
@@ -146,4 +153,6 @@ class Dso5200Control : public IDsoSource {
     mutable std::mutex statusMutex;
     std::string lastError;
     bool debugLog;
+    bool rawStatsEnabled = false;
+    unsigned rawStatsChannel = 0;
 };

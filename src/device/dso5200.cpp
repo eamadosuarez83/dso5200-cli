@@ -550,6 +550,12 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
             .count();
     frame.samplerate = samplerateCurrent;
 
+    // Estadísticas del ADC crudo para calibración (ver debugSetRawStats).
+    unsigned rawMin = ~0u;
+    unsigned rawMax = 0;
+    unsigned long long rawSum = 0;
+    unsigned long rawCount = 0;
+
     if (rawData.size() < 2) return frame;
     const size_t totalSampleCount = rawData.size() / 2; // kSampleSize (10) > 8
 
@@ -582,7 +588,14 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
                 ((unsigned short)rawData[totalSampleCount + bufferPosition - extraBitsPosition] << shift) &
                 extraBitsMask;
 
-            data[channel][pos] = ((double)(low + high) / limit - offset) * gainStep;
+            const unsigned short rawValue = (unsigned short)(low + high);
+            if (rawStatsEnabled && channel == rawStatsChannel) {
+                rawMin = std::min(rawMin, (unsigned)rawValue);
+                rawMax = std::max(rawMax, (unsigned)rawValue);
+                rawSum += rawValue;
+                ++rawCount;
+            }
+            data[channel][pos] = ((double)rawValue / limit - offset) * gainStep;
         }
     } else {
         for (unsigned channel = 0; channel < kChannels; ++channel) {
@@ -603,7 +616,14 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
                 const unsigned short high =
                     ((unsigned short)rawData[totalSampleCount + bufferPosition] << extraBitsIndex) & extraBitsMask;
 
-                data[channel][realPosition] = ((double)(low + high) / limit - offset) * gainStep;
+                const unsigned short rawValue = (unsigned short)(low + high);
+                if (rawStatsEnabled && channel == rawStatsChannel) {
+                    rawMin = std::min(rawMin, (unsigned)rawValue);
+                    rawMax = std::max(rawMax, (unsigned)rawValue);
+                    rawSum += rawValue;
+                    ++rawCount;
+                }
+                data[channel][realPosition] = ((double)rawValue / limit - offset) * gainStep;
             }
         }
     }
@@ -616,6 +636,12 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         cf.samples.reserve(data[ch].size());
         for (double v : data[ch]) cf.samples.push_back((float)v);
         frame.channels.push_back(std::move(cf));
+    }
+
+    if (rawStatsEnabled && rawCount > 0) {
+        std::cerr << "[cal] ch" << (rawStatsChannel + 1) << " raw min=" << rawMin << " max=" << rawMax
+                  << " mean=" << ((double)rawSum / (double)rawCount) << " pp=" << (rawMax - rawMin)
+                  << " n=" << rawCount << "\n";
     }
 
     return frame;

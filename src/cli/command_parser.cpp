@@ -198,6 +198,30 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
         }
         std::cout << "rawgain canal " << tokens[1] << " gainBits=" << tokens[2] << " b1v=" << tokens[3]
                   << " b100=" << tokens[4] << "\n";
+    } else if (cmd == "cal") {
+        // CALIBRACIÓN: volcar estadísticas del ADC crudo (min/max/promedio/pp) por frame a stderr.
+        if (tokens.size() != 2) {
+            std::cout << "Uso: cal <1|2|off>\n";
+            return;
+        }
+        auto *dso = dynamic_cast<Dso5200Control *>(&source);
+        if (!dso) {
+            std::cout << "cal solo disponible con hardware real (no en --simulate).\n";
+            return;
+        }
+        if (tokens[1] == "off") {
+            dso->debugSetRawStats(false, 0);
+            std::cout << "Estadisticas crudas desactivadas.\n";
+        } else {
+            auto channel = parseChannelIndex(tokens[1]);
+            if (!channel) {
+                std::cout << "Canal invalido (usa 1 o 2).\n";
+                return;
+            }
+            dso->debugSetRawStats(true, (unsigned)*channel);
+            std::cout << "Estadisticas crudas activadas para canal " << tokens[1]
+                      << " (impresas a stderr por frame).\n";
+        }
     } else {
         std::cout << "Comando desconocido: " << cmd << " (escribe 'help')\n";
     }
