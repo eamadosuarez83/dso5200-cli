@@ -10,6 +10,7 @@ import argparse
 import socket
 import struct
 import threading
+import math
 import queue
 
 import matplotlib
@@ -28,13 +29,26 @@ except ImportError:
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
-MAGIC = b"DSO5"
+MAGIC = b"DSO6"
 HEADER_FMT = "<4sIQd B"  # magic, frame_number, timestamp_ns, samplerate, num_channels
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
-CHANNEL_HEADER_FMT = "<B f I"  # channel_id, volts_per_div, num_samples
+CHANNEL_HEADER_FMT = "<B f I I f f"  # channel_id, volts_per_div, num_samples, clipped, adc_min_v, adc_max_v
 CHANNEL_HEADER_SIZE = struct.calcsize(CHANNEL_HEADER_FMT)
 
-CHANNEL_COLORS = {0: "gold", 1: "tab:cyan"}
+CHANNEL_COLORS = {0: "goldenrod", 1: "tab:cyan"}
+HORIZONTAL_DIVS = 10
+VERTICAL_HALF_DIVS = 5  # +-5 div: deja ver un poco mas alla de la pantalla de 8 div del aparato
+
+
+def format_volts(v):
+    return f"{v * 1000:g} mV" if abs(v) < 1 else f"{v:g} V"
+
+
+def format_seconds(t):
+    for unit, factor in (("s", 1), ("ms", 1e-3), ("us", 1e-6), ("ns", 1e-9)):
+        if abs(t) >= factor:
+            return f"{t / factor:.3g} {unit}"
+    return f"{t:.3g} s"
 
 
 def recv_exact(sock, length):
@@ -53,15 +67,26 @@ def read_frame(sock):
     header = recv_exact(sock, HEADER_SIZE)
     magic, frame_number, timestamp_ns, samplerate, num_channels = struct.unpack(HEADER_FMT, header)
     if magic != MAGIC:
-        raise ValueError(f"Magic invalido: {magic!r}")
+        raise ValueError(f"Magic invalido: {magic!r} (se esperaba {MAGIC!r}; servidor y visor de versiones distintas?)")
 
     channels = []
     for _ in range(num_channels):
         chan_header = recv_exact(sock, CHANNEL_HEADER_SIZE)
-        channel_id, volts_per_div, num_samples = struct.unpack(CHANNEL_HEADER_FMT, chan_header)
+        channel_id, volts_per_div, num_samples, clipped, adc_min_v, adc_max_v = struct.unpack(
+            CHANNEL_HEADER_FMT, chan_header
+        )
         samples_bytes = recv_exact(sock, num_samples * 4)
         samples = struct.unpack(f"<{num_samples}f", samples_bytes)
-        channels.append({"channel_id": channel_id, "volts_per_div": volts_per_div, "samples": samples})
+        channels.append(
+            {
+                "channel_id": channel_id,
+                "volts_per_div": volts_per_div,
+                "samples": samples,
+                "clipped": clipped,
+                "adc_min_v": adc_min_v,
+                "adc_max_v": adc_max_v,
+            }
+        )
 
     return {
         "frame_number": frame_number,
@@ -103,11 +128,18 @@ def main():
     thread.start()
 
     fig, ax = plt.subplots()
-    ax.set_xlabel("Tiempo (s)")
-    ax.set_ylabel("Divisiones (V/div por canal)")
-    ax.set_ylim(-5, 5)
+    ax.set_xlabel("Tiempo (divisiones)")
+    ax.set_ylabel("Divisiones")
+    ax.set_xlim(0, HORIZONTAL_DIVS)
+    ax.set_ylim(-VERTICAL_HALF_DIVS, VERTICAL_HALF_DIVS)
+    ax.set_xticks(range(HORIZONTAL_DIVS + 1))
+    ax.set_yticks(range(-VERTICAL_HALF_DIVS, VERTICAL_HALF_DIVS + 1))
+    ax.grid(True, color="0.85", linewidth=0.6)
+    ax.axhline(0.0, color="0.5", linewidth=0.8)  # 0 V de todos los canales
     lines = {}
+    rails = {}  # cid -> (linea min ADC, linea max ADC)
     fig.suptitle("dso5200basic - esperando datos...")
+    info = ax.text(0.01, 0.99, "", transform=ax.transAxes, va="top", ha="left", fontsize=9, family="monospace")
 
     def update(_frame_index):
         try:
@@ -117,24 +149,56 @@ def main():
 
         samplerate = frame["samplerate"]
         active_ids = set()
+        info_lines = []
+        time_per_div = None
         for channel in frame["channels"]:
             cid = channel["channel_id"]
             active_ids.add(cid)
             samples = channel["samples"]
             n = len(samples)
-            t = [i / samplerate for i in range(n)] if samplerate > 0 else list(range(n))
+            # Eje X en divisiones: la captura completa ocupa HORIZONTAL_DIVS.
+            x = [i * HORIZONTAL_DIVS / n for i in range(n)] if n else []
+            if samplerate > 0 and n:
+                time_per_div = n / samplerate / HORIZONTAL_DIVS
             volts_per_div = channel["volts_per_div"] or 1.0
             divisions = [s / volts_per_div for s in samples]
+            color = CHANNEL_COLORS.get(cid, None)
 
             if cid not in lines:
-                (lines[cid],) = ax.plot([], [], color=CHANNEL_COLORS.get(cid, None), label=f"CH{cid + 1}")
+                (lines[cid],) = ax.plot([], [], color=color, linewidth=0.9, label=f"CH{cid + 1}")
+                lo = ax.axhline(0, color=color, linestyle="--", linewidth=0.8, alpha=0.7)
+                hi = ax.axhline(0, color=color, linestyle="--", linewidth=0.8, alpha=0.7)
+                rails[cid] = (lo, hi)
                 ax.legend(loc="upper right")
-            lines[cid].set_data(t, divisions)
-            if t:
-                ax.set_xlim(t[0], t[-1])
+            lines[cid].set_data(x, divisions)
+
+            # Topes del ADC en divisiones: fuera de ellos la traza no es medida real.
+            lo, hi = rails[cid]
+            for line, volts in ((lo, channel["adc_min_v"]), (hi, channel["adc_max_v"])):
+                if math.isfinite(volts):
+                    line.set_ydata([volts / volts_per_div] * 2)
+                    line.set_visible(True)
+                else:
+                    line.set_visible(False)
+
+            text = f"CH{cid + 1} {format_volts(volts_per_div)}/div"
+            if channel["clipped"]:
+                pct = 100.0 * channel["clipped"] / n if n else 0.0
+                text += f"  RECORTE {channel['clipped']} muestras ({pct:.1f}%)"
+            info_lines.append(text)
 
         for cid, line in lines.items():
-            line.set_visible(cid in active_ids)
+            visible = cid in active_ids
+            line.set_visible(visible)
+            if not visible:
+                for rail in rails[cid]:
+                    rail.set_visible(False)
+
+        if time_per_div is not None:
+            info_lines.append(f"{format_seconds(time_per_div)}/div")
+        info.set_text("\n".join(info_lines))
+        clipped_any = any(ch["clipped"] for ch in frame["channels"])
+        info.set_color("red" if clipped_any else "black")
 
         fig.suptitle(
             f"dso5200basic - frame {frame['frame_number']}  samplerate={samplerate/1e6:.3f} MS/s"

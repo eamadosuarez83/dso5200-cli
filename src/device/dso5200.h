@@ -141,6 +141,8 @@ class Dso5200Control : public IDsoSource {
     double zeroCorrection[2][3] = {{0, 0, 0}, {0, 0, 0}};
     // Promedio crudo de la última captura por canal (lo usa calibrateZero()).
     double lastRawMean[2] = {-1.0, -1.0};
+    // Muestras recortadas (cuenta 0 o 1023) en la última captura, por canal (para `status`).
+    std::atomic<uint32_t> lastClipped[2] = {0, 0};
 
     // Runtime state (mirrors Dso::ControlSettings, trimmed to what this tool exposes)
     VoltageSettings voltage[kChannels];

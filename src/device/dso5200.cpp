@@ -235,6 +235,12 @@ std::string Dso5200Control::statusText() const {
         << " ch2=" << (voltage[1].used ? "on" : "off") << "@" << kGain[voltage[1].gain].voltsPerDiv << "V/div"
         << " slope=" << (trigger.slope == 0 ? "rising" : "falling")
         << " triggerLevel=" << trigger.level[trigger.source] << "V(ch" << (trigger.source + 1) << ")";
+    for (unsigned ch = 0; ch < kChannels; ++ch) {
+        if (!voltage[ch].used) continue;
+        oss << " ch" << (ch + 1) << "[grupo=" << hwGroupOf(voltage[ch].gain) << " offset=" << voltage[ch].offset
+            << " zeroCorr=" << zeroCorrection[ch][hwGroupOf(voltage[ch].gain)] << " recortadas=" << lastClipped[ch]
+            << "]";
+    }
     std::lock_guard<std::mutex> lock(statusMutex);
     if (!lastError.empty()) oss << " lastError=\"" << lastError << "\"";
     return oss.str();
@@ -599,6 +605,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
     const unsigned short extraBitsMask = (0x00ff << extraBitsSize) & 0xff00;
 
     std::vector<std::vector<double>> data(kChannels);
+    uint32_t clipped[kChannels] = {0, 0};
 
     if (isFastRate()) {
         unsigned channel = 0;
@@ -631,6 +638,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
                 ++rawCount;
             }
             chSum += rawValue;
+            if (rawValue == 0 || rawValue >= (unsigned short)kAdcMax) ++clipped[channel];
             data[channel][pos] = ((double)rawValue - zero) / countsPerVolt;
         }
         if (totalSampleCount) lastRawMean[channel] = (double)chSum / (double)totalSampleCount;
@@ -660,6 +668,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
                     ++rawCount;
                 }
                 chSum += rawValue;
+                if (rawValue == 0 || rawValue >= (unsigned short)kAdcMax) ++clipped[channel];
                 data[channel][realPosition] = ((double)rawValue - zero) / countsPerVolt;
             }
             if (!data[channel].empty()) lastRawMean[channel] = (double)chSum / (double)data[channel].size();
@@ -671,6 +680,10 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         ChannelFrame cf;
         cf.channelId = (uint8_t)ch;
         cf.voltsPerDiv = (float)kGain[voltage[ch].gain].voltsPerDiv;
+        cf.clippedSamples = clipped[ch];
+        cf.adcMinVolts = (float)((0.0 - rawZero(ch)) / hwGroup(ch).countsPerVolt);
+        cf.adcMaxVolts = (float)((kAdcMax - rawZero(ch)) / hwGroup(ch).countsPerVolt);
+        lastClipped[ch] = clipped[ch];
         cf.samples.reserve(data[ch].size());
         for (double v : data[ch]) cf.samples.push_back((float)v);
         frame.channels.push_back(std::move(cf));

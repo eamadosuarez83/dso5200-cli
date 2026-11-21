@@ -27,7 +27,7 @@ std::vector<uint8_t> serializeFrame(const CaptureFrame &frame) {
     buffer.push_back('D');
     buffer.push_back('S');
     buffer.push_back('O');
-    buffer.push_back('5');
+    buffer.push_back('6');
     appendLE(buffer, frame.frameNumber);
     appendLE(buffer, frame.timestampNs);
     appendLE(buffer, frame.samplerate);
@@ -37,6 +37,9 @@ std::vector<uint8_t> serializeFrame(const CaptureFrame &frame) {
         buffer.push_back(channel.channelId);
         appendLE(buffer, channel.voltsPerDiv);
         appendLE(buffer, (uint32_t)channel.samples.size());
+        appendLE(buffer, channel.clippedSamples);
+        appendLE(buffer, channel.adcMinVolts);
+        appendLE(buffer, channel.adcMaxVolts);
         for (float sample : channel.samples) appendLE(buffer, sample);
     }
 
