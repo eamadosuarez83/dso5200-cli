@@ -14,6 +14,15 @@ Complementa al informe de estado; no lo reemplaza.
 > (cpv 22) da solo ±2.3 div, y en 100 mV/div (cpv 690) ±7.4 div. Si en el
 > software oficial esos pasos llenan la pantalla, el valor de cpv de esos
 > grupos es sospechoso.
+>
+> Hecho también sin hardware: T9 (recorte: protocolo `DSO6` con muestras
+> recortadas y topes del ADC en volts; `status` las muestra), T10 (visor con
+> cuadrícula 10 div, eje en divisiones, topes del ADC y aviso RECORTE) y T13
+> (documentación). Guion de la sesión con el aparato: `docs/SESION_HW.md`.
+> Cambio de comportamiento a tener en cuenta: el offset ya **no** desplaza la
+> traza en pantalla (los volts son absolutos). Solo mueve en qué parte del ADC
+> cae la señal, y eso se ve en los topes discontinuos. La posición en pantalla
+> sería T8.
 
 ---
 

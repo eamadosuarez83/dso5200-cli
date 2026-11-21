@@ -323,7 +323,13 @@ número de ciclos capturados ahora escala proporcionalmente con la ventana
 pedida (1, 2, 2, 2, 6, 12, 35, 74, 106, 304, 1002+ ciclos de 246 us a
 819 ms) — exactamente lo esperado para una señal de 1 kHz.
 
-## CH2 lee cero plano en 4V/div y 40V/div — abierto, sin resolver
+## CH2 lee cero plano en 4V/div y 40V/div — resuelto (esos pasos no existían)
+
+> **Cerrado:** "4V" y "40V" no eran pasos reales del aparato; se corrigió en
+> `0df2b29` (ver la sección siguiente). El problema de fondo que quedaba, que
+> la traza no escalaba ni quedaba centrada, era un error de unidades en la
+> fórmula de conversión. Ver "Conversión a voltios" más abajo.
+
 
 Con el bug de timebase ya resuelto, probando con el generador conectado a
 ambos canales apareció un síntoma nuevo: CH1 funciona bien en las 12 bases
@@ -416,6 +422,23 @@ offset por omisión sin centrar (arriba); para probarlo bien hace falta una
 señal cuya amplitud quepa dentro del rango a probar, no CAL saturando por
 los dos extremos de la tabla. Ver `docs/GUIA_ESTUDIO.md` (Bloque 6, octavo
 caso real) para el detalle completo.
+
+## Conversión a voltios — corregida en software, pendiente de verificar en hardware
+
+La fórmula heredada de OpenHantek, `(raw/limit − offsetReal) × gainStep`,
+trabaja en unidades de pantalla completa: `gainStep` son voltios por pantalla
+de 8 divisiones. Por eso la tabla original era 0.16…80 V, es decir
+8 × 20 mV…10 V/div. Al cambiar `gainStep` a V/div sin tocar la fórmula, la
+cuenta de reposo del ADC dejó de restarse y la traza quedaba fuera de pantalla
+en casi todos los V/div.
+
+Desde `af64c0a`: `volts = (raw − rawZero) / countsPerVolt[grupo]`. Hay 3
+grupos de relés (`kHwGroup`) y el V/div solo lo usa el visor para dividir.
+`rawZero` se toma como `offset × 1023` más una corrección que se mide con
+`zero <canal>` con la entrada a GND. El frame incluye además las muestras
+recortadas y los voltios de los topes del ADC (protocolo `DSO6`), que el visor
+dibuja en línea discontinua. Diagnóstico, supuestos y tareas pendientes:
+[`docs/PLAN_ESCALAS.md`](docs/PLAN_ESCALAS.md).
 
 ## Protocolo de streaming hacia el visor
 

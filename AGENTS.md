@@ -47,7 +47,7 @@ firmware -> `Dso5200Control` -> `SampleServer` -> viewer.
 - `src/usb/*` — libusb device handling, firmware upload (`ezusb.cpp`,
   `uploadfirmware.cpp`), device detection (`finddevice.cpp`).
 - `src/streaming/sample_server.cpp` — TCP streaming; wire format in
-  `docs/PROTOCOL.md` (little-endian, magic `"DSO5"`).
+  `docs/PROTOCOL.md` (little-endian, magic `"DSO6"`).
 - `src/cli/command_parser.cpp` — interactive command dispatch.
 - `viewer/dso_viewer.py` — matplotlib viewer (see backend gotcha below).
 
@@ -57,11 +57,9 @@ add new headers under `src/` and include them relative to it.
 ## Estado actual — leer primero
 
 **Lee `docs/INFORME_ESTADO.md` y luego `docs/PLAN_ESCALAS.md` (diagnóstico de escalas V/div y lista de tareas T1–T14) antes de trabajar.** Es el informe de traspaso
-(17-nov-2026) con todos los bugs encontrados, el método de validación y el
-problema abierto real (calibración de amplitud por V/div, commit `c5d8ad9`,
-no confirmado). Donde contradiga a este archivo, manda el informe: la viñeta
-"Open bug (CH2 saturation)" y la descripción de la tabla V/div de abajo están
-desactualizadas.
+(17-nov-2026) con todos los bugs encontrados y el método de validación. El
+plan (21-nov-2026) tiene el diagnóstico de las escalas y el estado de cada
+tarea; si contradice al informe, manda el plan.
 
 ## Hardware/model gotchas (hard-earned, do not regress)
 
@@ -72,9 +70,13 @@ Read the matching sections of README.md before touching the related code.
   `kSlowTimebaseTable` in `dso5200.cpp`; `SamplerateFast` must be `2` (not `4`)
   for slow timebases — the hardware is not indifferent to the exact
   `slow`/`fast` pair even when the documented divider formula matches.
-- **V/div steps are 10V..10mV (1-2-5 sequence), not 0.16V..80V.**
-  `kGain[9]` labels follow `0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10`; the relay
-  threshold is a contiguous range, not a single cutoff (10-bit model).
+- **V/div: 3 grupos físicos y escala matemática dentro de cada grupo.**
+  `kGain[9]` = `0.02 … 10` V/div (1-2-5). `kHwGroup[gainID/3]` da los relés
+  (`below1V`/`below100mV`) y las cuentas/V; `gainBits` no tiene efecto (va en 0).
+  La conversión es `volts = (raw − rawZero) / countsPerVolt` y el visor divide
+  por V/div. **No** volver a la fórmula de OpenHantek `(raw/limit − offset) ×
+  gainStep`: allí `gainStep` era V por *pantalla* y mezclar unidades fue el bug
+  de `0df2b29`/`c5d8ad9` (ver `docs/PLAN_ESCALAS.md` §2).
 - **`triggerPoint` is used raw.** The bit-reversal decode that OpenHantek and
   sigrok apply to the value returned by `GETCAPTURESTATE` is wrong for the
   DSO-5200; `Dso5200Control` intentionally has no `calculateTriggerPoint`.
@@ -82,11 +84,10 @@ Read the matching sections of README.md before touching the related code.
   don't reintroduce a `position * samplerate` conversion.
 - **Trigger source is always CH1.** Hardcoded `triggerCommand.setTriggerSource(1)`
   in the constructor; the channel mapping is inverted (`1 - hardwareID`).
-- **Open bug (CH2 saturation):** CH2 reads flat-zero at certain gain steps due
-  to default offset mapping to the edge of the ADC range. Tracked in
-  README.md ("CH2 lee cero plano…"); the real remaining issue is the default
-  offset not centering the trace. Debug aids: `offsettest <ch> <frac>` and
-  `rawgaintest <ch> <gainBits> <b1v> <b100>` CLI commands (temp, not in `help`).
+- **Abierto: calibración de escalas** (cero y cuentas/V sin verificar en
+  hardware): ver `docs/PLAN_ESCALAS.md`. Comandos de depuración fuera de
+  `help`: `cal <ch|off>`, `offsettest <ch> <frac>`,
+  `rawgaintest <ch> <gainBits> <b1v> <b100>`. En `help`: `zero <ch>`.
 - **Viewer must use TkAgg.** `dso_viewer.py` forces `matplotlib.use("TkAgg")`;
   the Qt/PyQt6 backend SIGABRTs in long sessions. Don't remove that.
 
