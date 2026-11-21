@@ -81,6 +81,7 @@ void printHelp() {
               << "  channel <1|2|both|none>        Activa/desactiva canales\n"
               << "  slope <rising|falling>         Pendiente de disparo\n"
               << "  trigger <volts>                Nivel de disparo en volts (ej: trigger 1.0)\n"
+              << "  zero <1|2>                     Calibra el cero del canal (entrada a GND) en el grupo actual\n"
               << "  start                          Inicia el muestreo\n"
               << "  stop                           Detiene el muestreo\n"
               << "  status                         Muestra el estado actual\n"
@@ -222,6 +223,26 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
             std::cout << "Estadisticas crudas activadas para canal " << tokens[1]
                       << " (impresas a stderr por frame).\n";
         }
+    } else if (cmd == "zero") {
+        // Calibración del cero: con la entrada a 0 V, toma el promedio crudo de la última
+        // captura como el cero del grupo de relés actual (ver Dso5200Control::calibrateZero).
+        if (tokens.size() != 2) {
+            std::cout << "Uso: zero <1|2>   (con la entrada del canal a GND o la punta en corto)\n";
+            return;
+        }
+        auto channel = parseChannelIndex(tokens[1]);
+        auto *dso = dynamic_cast<Dso5200Control *>(&source);
+        if (!dso) {
+            std::cout << "zero solo disponible con hardware real (no en --simulate).\n";
+            return;
+        }
+        double correction = 0.0;
+        if (!channel || !dso->calibrateZero((unsigned)*channel, &correction)) {
+            std::cout << "zero fallo (canal invalido o aun no hay captura; usa 'start' primero).\n";
+            return;
+        }
+        std::cout << "Cero del canal " << tokens[1] << " calibrado para el grupo actual (correccion "
+                  << correction << " cuentas).\n";
     } else {
         std::cout << "Comando desconocido: " << cmd << " (escribe 'help')\n";
     }

@@ -54,6 +54,11 @@ class Dso5200Control : public IDsoSource {
 
     // CALIBRACIÓN: activa el volcado de estadísticas del ADC crudo (cuentas puras, sin
     // conversión a volts) para el canal indicado, impreso a stderr en cada frame.
+    // CALIBRACIÓN DE CERO: con la entrada del canal a 0 V (GND o punta en corto), toma el
+    // promedio crudo de la última captura como el cero del grupo actual. Devuelve false si
+    // todavía no hay captura. `correctionOut` recibe la corrección aplicada (cuentas).
+    bool calibrateZero(unsigned channel, double *correctionOut = nullptr);
+
     void debugSetRawStats(bool enabled, unsigned channel) {
         rawStatsEnabled = enabled;
         rawStatsChannel = channel;
@@ -61,9 +66,12 @@ class Dso5200Control : public IDsoSource {
 
   private:
     struct VoltageSettings {
-        double offset = 0.0;
-        double offsetReal = 0.0;
-        unsigned gain = 4; // index into kGain, defaults to the 4.00 V/div step
+        // Offset vertical como fracción 0..1 del rango del DAC de offset (EEPROM). 0.5 coloca
+        // los 0 V a mitad del ADC (ver rawZero()); con 0.0 los 0 V caen en la cuenta 0 y la
+        // mitad negativa de la señal se recorta.
+        double offset = 0.5;
+        double offsetReal = 0.5;
+        unsigned gain = 4; // índice en kGain, por omisión 0.5 V/div
         bool used = true;
     };
     struct TriggerSettings {
@@ -115,7 +123,24 @@ class Dso5200Control : public IDsoSource {
         double voltsPerDiv;
     };
     static const GainStep kGain[9];
-    static const unsigned short kVoltageLimit[9];
+
+    // Grupo analógico físico (relés). Solo hay 3; los 9 V/div se reparten de a 3 por grupo y
+    // dentro de un grupo la escala es puramente matemática. Ver kHwGroup en dso5200.cpp.
+    struct HwGroup {
+        bool below1V;
+        bool below100mV;
+        double countsPerVolt; // cuentas del ADC por voltio real en la entrada
+    };
+    static const HwGroup kHwGroup[3];
+    static constexpr double kAdcMax = 1023.0; // ADC de 10 bits
+    static unsigned hwGroupOf(unsigned gainID) { return gainID / 3; }
+    const HwGroup &hwGroup(unsigned channel) const { return kHwGroup[hwGroupOf(voltage[channel].gain)]; }
+    // Cuenta del ADC que corresponde a 0 V en la entrada, con el offset y el grupo actuales.
+    double rawZero(unsigned channel) const;
+    // Corrección aditiva (en cuentas) de rawZero por canal y grupo, fijada con el comando `zero`.
+    double zeroCorrection[2][3] = {{0, 0, 0}, {0, 0, 0}};
+    // Promedio crudo de la última captura por canal (lo usa calibrateZero()).
+    double lastRawMean[2] = {-1.0, -1.0};
 
     // Runtime state (mirrors Dso::ControlSettings, trimmed to what this tool exposes)
     VoltageSettings voltage[kChannels];

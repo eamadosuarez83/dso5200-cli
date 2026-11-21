@@ -3,6 +3,18 @@
 Fecha: 21-nov-2026. Base: commit `0944abb` + `docs/INFORME_ESTADO.md`.
 Complementa al informe de estado; no lo reemplaza.
 
+> **Actualización 21-nov-2026:** la fórmula de §3 ya está en el código
+> (T5 en su parte de software: `kHwGroup`, `rawZero()`, nivel de disparo,
+> comando `zero <ch>`, offset por omisión 0.5). **No está verificada en el
+> aparato.** El cero usa el supuesto `rawZero = offsetReal × 1023` más la
+> corrección que mide `zero`. Siguiente paso: T1, T2 y T6 con el aparato.
+> Para comprobar la coherencia en T3: con el offset en 0.5, el ADC completo
+> (±512 cuentas) equivale a ±512/(cpv·Vdiv) divisiones. En 1 V/div (cpv 112)
+> da ±4.6 div, y eso cuadra con una pantalla de 8–10 div. En 10 V/div
+> (cpv 22) da solo ±2.3 div, y en 100 mV/div (cpv 690) ±7.4 div. Si en el
+> software oficial esos pasos llenan la pantalla, el valor de cpv de esos
+> grupos es sospechoso.
+
 ---
 
 ## 1. Qué hay hoy
