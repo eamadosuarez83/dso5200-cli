@@ -597,6 +597,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
     unsigned rawMax = 0;
     unsigned long long rawSum = 0;
     unsigned long rawCount = 0;
+    std::vector<unsigned short> rawValues; // para los niveles de meseta (onda cuadrada)
 
     if (rawData.size() < 2) return frame;
     const size_t totalSampleCount = rawData.size() / 2; // kSampleSize (10) > 8
@@ -636,6 +637,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
                 rawMax = std::max(rawMax, (unsigned)rawValue);
                 rawSum += rawValue;
                 ++rawCount;
+                rawValues.push_back(rawValue);
             }
             chSum += rawValue;
             if (rawValue == 0 || rawValue >= (unsigned short)kAdcMax) ++clipped[channel];
@@ -666,6 +668,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
                     rawMax = std::max(rawMax, (unsigned)rawValue);
                     rawSum += rawValue;
                     ++rawCount;
+                    rawValues.push_back(rawValue);
                 }
                 chSum += rawValue;
                 if (rawValue == 0 || rawValue >= (unsigned short)kAdcMax) ++clipped[channel];
@@ -693,6 +696,30 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         std::cerr << "[cal] ch" << (rawStatsChannel + 1) << " raw min=" << rawMin << " max=" << rawMax
                   << " mean=" << ((double)rawSum / (double)rawCount) << " pp=" << (rawMax - rawMin)
                   << " n=" << rawCount << "\n";
+
+        // Niveles de meseta: promedio de las muestras por encima y por debajo de la media. Para una
+        // onda cuadrada (CAL) dan los dos niveles sin el sobreimpulso de los flancos (sonda mal
+        // compensada), que sí infla min/max. Con la entrada a GND alto≈bajo≈media.
+        const double mean = (double)rawSum / (double)rawCount;
+        double hiSum = 0, loSum = 0;
+        unsigned long hiN = 0, loN = 0;
+        for (unsigned short v : rawValues) {
+            if (v > mean) {
+                hiSum += v;
+                ++hiN;
+            } else {
+                loSum += v;
+                ++loN;
+            }
+        }
+        const double hi = hiN ? hiSum / hiN : mean;
+        const double lo = loN ? loSum / loN : mean;
+        const unsigned ch = rawStatsChannel;
+        const double cpv = hwGroup(ch).countsPerVolt;
+        std::cerr << "[cal] ch" << (ch + 1) << " meseta alto=" << hi << " bajo=" << lo << " amp=" << (hi - lo)
+                  << " ciclo=" << (100.0 * hiN / rawCount) << "% | modelo: grupo=" << hwGroupOf(voltage[ch].gain)
+                  << " cpv=" << cpv << " rawZero=" << rawZero(ch) << " Vamp=" << ((hi - lo) / cpv)
+                  << " Vbajo=" << ((lo - rawZero(ch)) / cpv) << "\n";
     }
 
     return frame;
