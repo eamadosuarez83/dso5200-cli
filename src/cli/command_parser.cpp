@@ -186,6 +186,16 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
             return;
         }
         std::cout << "Nivel de disparo ajustado a " << tokens[1] << " V.\n";
+    } else if (cmd == "rawsource") {
+        // DEPURACIÓN (fuera de help): valor crudo 0..3 del campo de fuente del disparo.
+        auto *real = dynamic_cast<Dso5200Control *>(&source);
+        auto value = tokens.size() == 2 ? parseNumber(tokens[1]) : std::nullopt;
+        if (!real || !value || *value < 0 || *value > 3) {
+            std::cout << "Uso: rawsource <0..3> (solo hardware real)\n";
+            return;
+        }
+        real->debugSetRawTriggerSource((uint8_t)*value);
+        std::cout << "ETsrBits.triggerSource = " << (int)*value << "\n";
     } else if (cmd == "offsettest") {
         // TEMP TEST command: investigating a CH2-specific flat-zero bug at 4V/40V.
         if (tokens.size() != 3) {

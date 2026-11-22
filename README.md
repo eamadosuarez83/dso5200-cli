@@ -204,6 +204,27 @@ Hantek, **no aplica al DSO-5200(A)**. Corregido eliminando esa decodificación
 comentario en `dso5200.cpp` junto a `retrieveChannelLevelData()` para el
 detalle completo, con referencia cruzada al código de sigrok).
 
+### Fuente del disparo: solo CH1 por hardware (medido 22-nov-2026)
+
+Con la CAL en CH2 (AC, ±1 V) se probaron los cuatro valores del campo de 2 bits
+`ETsrBits.triggerSource` (comando de depuración `rawsource <0..3>`, fuera de `help`),
+barriendo el DAC de disparo en todo su rango (44..4095). **Solo el 1 (CH1) dispara**; 0, 2 y 3
+no disparan nunca. El "0 = CH2" que se deducía del mapeo `1 - canal` de OpenHantek nunca se había
+comprobado y no funciona en este aparato. Si existe otro bit o comando para disparar desde CH2,
+habría que verlo en una captura USB del software de Windows eligiendo CH2. Mientras tanto, la GUI
+dispara CH2 por software.
+
+Recordatorio práctico: el disparo es por **nivel** (por omisión 0 V). En AC la CAL (−1..+1 V) lo
+cruza; en DC (0..2 V) el nivel de 0 V queda en la base de la señal, casi no dispara y AUTO fuerza
+capturas (la imagen se mueve). En DC hay que subir el nivel a la mitad de la señal (`trigger 1`).
+
+### Pendiente: un solo canal activo (medido 22-nov-2026)
+
+Con `channel 2`, el aparato entrega CH2 en la posición del búfer de CH1, con otro cero (~5
+cuentas) y otra ganancia (~3 %), y `convertRawDataToSamples` lo lee en la posición de CH2, que
+queda plana (~516 cuentas). Hay que leerlo en la otra posición y calibrar ese modo. La GUI evita
+el problema dejando siempre los dos canales activos.
+
 ## Timebase — resuelto, tabla de valores fijos en vez de fórmula continua
 
 `timebase` no tenía ningún efecto real sobre la ventana de captura: pedir

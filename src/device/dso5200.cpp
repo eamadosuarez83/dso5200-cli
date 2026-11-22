@@ -189,7 +189,8 @@ Dso5200Control::Dso5200Control(USBDevice *device, bool debugLog) : device(device
     // comparator ends up watching CH2 instead of CH1 - it would never see a real edge on the
     // signal connected to CH1, so the tool always fell back to force-triggering (unstable
     // display). trigger.source is fixed to channel 0 (CH1) in this tool, so this only needs
-    // setting once, here.
+    // setting once, here. CH2 como fuente NO se consigue con este campo (probado 22-nov-2026, ver
+    // debugSetRawTriggerSource): con el protocolo conocido el disparo por hardware es solo de CH1.
     triggerCommand.setTriggerSource((uint8_t)(1 - trigger.source));
     bulkCommand(triggerCommand);
 

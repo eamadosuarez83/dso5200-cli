@@ -50,6 +50,17 @@ class Dso5200Control : public IDsoSource {
         return doSetOffset(channel, offset);
     }
 
+    // DEPURACIÓN: escribe un valor crudo (0..3) en ETsrBits.triggerSource, sin tocar trigger.source
+    // ni el nivel (comando `rawsource`). MEDIDO 22-nov-2026 con la CAL en CH2 y el DAC de disparo
+    // barrido en todo su rango (44..4095): solo 1 (CH1) dispara; 0, 2 y 3 nunca. El "0 = CH2" del
+    // mapeo `1 - canal` heredado de OpenHantek no funciona en este aparato. Ver README §"Disparo".
+    bool debugSetRawTriggerSource(uint8_t value) {
+        std::lock_guard<std::mutex> lock(ioMutex);
+        triggerCommand.setTriggerSource(value & 0x03);
+        bulkCommand(triggerCommand);
+        return true;
+    }
+
     // TEMP TEST: reconstructing the real V/div table (GainBits + relay decade), bypassing kGain.
     bool debugSetRawGain(unsigned channel, uint8_t gainBits, bool below1V, bool below100mV);
 
