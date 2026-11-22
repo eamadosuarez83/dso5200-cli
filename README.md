@@ -31,6 +31,8 @@ cmake --build build -j$(nproc)
 El binario resultante es `build/dso5200basic`. El firmware (`firmware/*.hex`)
 se copia automáticamente junto al binario tras el build.
 
+Análisis estático del firmware FX2 (comandos ocultos `B6`–`BC`, diferencias 5200/5200A, por qué el disparo vive en el FPGA): [docs/firmware/ANALISIS_FIRMWARE.md](docs/firmware/ANALISIS_FIRMWARE.md).
+
 Para que el dispositivo sea accesible sin root:
 
 ```sh
