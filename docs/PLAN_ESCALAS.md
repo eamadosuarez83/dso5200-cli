@@ -27,7 +27,8 @@ Complementa al informe de estado; no lo reemplaza.
 >   y lo mismo para subida y bajada. Se midió con las ventanas de enganche,
 >   un método que no depende de la muestra del disparo. Corregido
 >   (`kTrigGain`, `kTrigOffsetCounts`): con la CAL x10 en 0.1 V/div la ventana
->   pasó de [−0.105, +0.065] V a [−0.105, +0.105] V, simétrica. Los 25 cuentas
+>   pasó de [−0.105, +0.065] V a [−0.105, +0.105] V, simétrica. En el grupo de 0.2–1 V
+>   (x1) pasó de [−0.95, +0.60] V a [−0.95, +0.95] V. Los 25 cuentas
 >   de desplazamiento impedían enganchar con señales < ±25 cuentas. Queda una
 >   histéresis de ~9 cuentas: una señal de ±11 cuentas solo engancha con el
 >   nivel cerca de 0.
