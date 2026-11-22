@@ -25,6 +25,7 @@ class Simulator : public IDsoSource {
     bool setTimebase(double secondsPerScreen) override;
     bool setVoltsPerDiv(int channel, double voltsPerDiv) override;
     bool setChannelEnabled(int channel, bool enabled) override;
+    bool setCoupling(int channel, Coupling coupling) override;
     bool setTriggerSlope(TriggerSlope slope) override;
     bool setTriggerLevel(double volts) override;
 
@@ -40,6 +41,7 @@ class Simulator : public IDsoSource {
     double secondsPerScreen = 0.001;
     double voltsPerDiv[kChannels] = {0.5, 0.5};
     bool channelEnabled[kChannels] = {true, true};
+    Coupling coupling[kChannels] = {Coupling::DC, Coupling::DC};
     TriggerSlope slope = TriggerSlope::Rising;
     double triggerLevel = 0.0;
 

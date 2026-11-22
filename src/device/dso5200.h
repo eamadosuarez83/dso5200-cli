@@ -38,6 +38,7 @@ class Dso5200Control : public IDsoSource {
     bool setTimebase(double secondsPerScreen) override;
     bool setVoltsPerDiv(int channel, double voltsPerDiv) override;
     bool setChannelEnabled(int channel, bool enabled) override;
+    bool setCoupling(int channel, Coupling coupling) override;
     bool setTriggerSlope(TriggerSlope slope) override;
     bool setTriggerLevel(double volts) override;
 
@@ -71,6 +72,7 @@ class Dso5200Control : public IDsoSource {
         uint16_t offsetDac = 0; // valor enviado al DAC de offset (12 bits)
         unsigned gain = 4; // índice en kGain, por omisión 0.5 V/div
         bool used = true;
+        Coupling coupling = Coupling::DC;
     };
     struct TriggerSettings {
         double level[2] = {0.0, 0.0};
@@ -94,6 +96,7 @@ class Dso5200Control : public IDsoSource {
     bool doSetTriggerLevel(unsigned channel, double level);
     bool doSetTriggerSlopeInternal(uint8_t slope);
     bool doSetChannelUsed(unsigned channel, bool used);
+    bool doSetCoupling(unsigned channel, Coupling coupling);
     bool doSetPretriggerPosition(double position);
     bool retrieveChannelLevelData();
     std::pair<int, unsigned> getCaptureState();

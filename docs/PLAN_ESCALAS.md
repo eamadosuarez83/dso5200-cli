@@ -181,7 +181,7 @@ INFORME §2.
 | T8 | **Offset vertical en divisiones**: un comando `offset <ch> <div>` que mueva la traza sin que cambie la amplitud medida | SW+HW | T5 | El pp no cambia al mover el offset |
 | T9 | **Detectar saturación**: si raw es 0 o 1023, avisar en `status`/stderr y marcar la muestra en el frame. Puede ser un flag por canal en el protocolo TCP, lo que obliga a subir la versión en `PROTOCOL.md` | SW | T5 | El visor muestra el aviso de recorte |
 | T10 | **Visor**: línea de 0 V por canal, cuadrícula de 10×8 divisiones, texto con el V/div de cada canal, ylim acorde con la cuadrícula | SW | — | Prueba visual con `--simulate` |
-| T11 | **Comando `coupling <ch> gnd`** (la firma USB está en INFORME §4). Sirve también para automatizar T1/T2 | SW+HW | — | Traza plana en 0 V con GND |
+| T11 | ✅ **Hecho 22-nov-2026**: `coupling <ch> dc\|ac\|gnd`. No hay relé de masa: GND es por software (0 V), así que **no** sirve para automatizar T1/T2 (la entrada sigue conectada). Ver README §"Acoplamiento" | SW+HW | — | Traza plana en 0 V con GND |
 | T12 | **Calibración automática al arrancar** (opcional): con GND, medir `raw0` por grupo y guardarlo en un archivo de config | SW+HW | T2, T11 | Arranque sin ajuste manual |
 | T13 | **Limpieza**: quitar los comandos temporales o documentarlos en `help`. Actualizar AGENTS.md (viñetas obsoletas de V/div y CH2), README §"CH2 lee cero plano" (marcarla resuelta), el comentario `gain = 4 // 4.00 V/div` de `dso5200.h:66`, y añadir AGENTS.md y INFORME_ESTADO.md al repositorio (hoy están sin seguimiento) | SW | T6 | Docs coherentes con el código |
 | T14 | **Pruebas sin hardware** (opcional): test unitario de la conversión raw→volts y del mapeo V/div→grupo→relés | SW | T5 | `ctest` pasa |

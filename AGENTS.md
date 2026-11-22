@@ -88,6 +88,11 @@ Read the matching sections of README.md before touching the related code.
   hardware): ver `docs/PLAN_ESCALAS.md`. Comandos de depuración fuera de
   `help`: `cal <ch|off>`, `offsettest <ch> <frac>`,
   `rawgaintest <ch> <gainBits> <b1v> <b100>`. En `help`: `zero <ch>`.
+- **Acoplamiento: arranca en DC; GND es por software.** `setCoupling()`
+  (`IDsoSource`). El bit por omisión de `ControlSetRelays` es **AC**: no quitar el
+  `relaysCommand.setCoupling(...)` del constructor o todo vuelve a medirse en AC.
+  No hay relé de masa: `Coupling::GND` = relé en DC + muestras a 0 V en
+  `convertRawDataToSamples` (ver README §"Acoplamiento").
 - **Viewer must use TkAgg.** `dso_viewer.py` forces `matplotlib.use("TkAgg")`;
   the Qt/PyQt6 backend SIGABRTs in long sessions. Don't remove that.
 

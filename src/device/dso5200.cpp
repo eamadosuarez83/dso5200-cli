@@ -172,6 +172,8 @@ bool Dso5200Control::calibrateZero(unsigned channel, double *correctionOut) {
     if (channel >= kChannels) return false;
     std::lock_guard<std::mutex> lock(ioMutex);
     if (lastRawMean[channel] < 0.0) return false;
+    // En GND por software la entrada sigue conectada: su media no es el cero.
+    if (voltage[channel].coupling == Coupling::GND) return false;
     const unsigned group = hwGroupOf(voltage[channel].gain);
     zeroCorrection[channel][group] = lastRawMean[channel] - rawFromDac(channel, voltage[channel].offsetDac);
     if (correctionOut) *correctionOut = zeroCorrection[channel][group];
@@ -193,6 +195,11 @@ Dso5200Control::Dso5200Control(USBDevice *device, bool debugLog) : device(device
 
     doSetChannelUsed(0, true);
     doSetChannelUsed(1, true);
+    // Arranque en DC (22-nov-2026). Antes el bit de acoplamiento quedaba en su valor por omisión
+    // (0 = AC) y todo se medía en AC sin saberlo: la CAL (0..2 V) se veía como -1..+1 V. Aquí solo
+    // se prepara el bit; lo envía doSetGain() justo después, junto con los relés de grupo.
+    relaysCommand.setCoupling(0, voltage[0].coupling != Coupling::AC);
+    relaysCommand.setCoupling(1, voltage[1].coupling != Coupling::AC);
     doSetGain(0, kGain[voltage[0].gain].voltsPerDiv);
     doSetGain(1, kGain[voltage[1].gain].voltsPerDiv);
     doSetTriggerSlopeInternal(0);
@@ -243,6 +250,12 @@ bool Dso5200Control::setChannelEnabled(int channel, bool enabled) {
     return doSetChannelUsed((unsigned)channel, enabled);
 }
 
+bool Dso5200Control::setCoupling(int channel, Coupling coupling) {
+    if (channel < 0 || channel >= (int)kChannels) return false;
+    std::lock_guard<std::mutex> lock(ioMutex);
+    return doSetCoupling((unsigned)channel, coupling);
+}
+
 bool Dso5200Control::setTriggerSlope(TriggerSlope slope) {
     std::lock_guard<std::mutex> lock(ioMutex);
     return doSetTriggerSlopeInternal(slope == TriggerSlope::Rising ? 0 : 1);
@@ -265,7 +278,9 @@ std::string Dso5200Control::statusText() const {
         << " triggerLevel=" << trigger.level[trigger.source] << "V(ch" << (trigger.source + 1) << ")";
     for (unsigned ch = 0; ch < kChannels; ++ch) {
         if (!voltage[ch].used) continue;
-        oss << " ch" << (ch + 1) << "[grupo=" << hwGroupOf(voltage[ch].gain) << " offset=" << voltage[ch].offset
+        static const char *const kCouplingName[] = {"DC", "AC", "GND"};
+        oss << " ch" << (ch + 1) << "[" << kCouplingName[(int)voltage[ch].coupling]
+            << " grupo=" << hwGroupOf(voltage[ch].gain) << " offset=" << voltage[ch].offset
             << " zeroCorr=" << zeroCorrection[ch][hwGroupOf(voltage[ch].gain)] << " recortadas=" << lastClipped[ch]
             << "]";
     }
@@ -399,6 +414,17 @@ bool Dso5200Control::doSetRecordTime(double duration) {
     }
 
     return applyTimebaseTableEntry(bestIndex, nullptr);
+}
+
+// Relé de acoplamiento (bit 0x02 de data[3] para CH1, 0x10 de data[6] para CH2). MEDIDO
+// 22-nov-2026 con la CAL (cuadrada 0..2 V, 1 kHz) a 0.5 V/div: bit=0 -> -1..+1 V (media 0, AC);
+// bit=DC -> 0..+2.03 V (media +1.01 V), en los dos canales, reversible. El cero y las ganancias
+// calibrados en AC siguen valiendo en DC (nivel bajo -0.015 V, amplitud 2.03-2.09 Vpp).
+// doSetGain() conserva este bit porque setBelow1V()/setBelow100mV() escriben otros bytes.
+bool Dso5200Control::doSetCoupling(unsigned channel, Coupling coupling) {
+    voltage[channel].coupling = coupling;
+    relaysCommand.setCoupling(channel, coupling != Coupling::AC); // GND: relé en DC, 0 V por software
+    return device->controlWrite(&relaysCommand) >= 0;
 }
 
 bool Dso5200Control::doSetGain(unsigned channel, double gain) {
@@ -711,6 +737,11 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         ChannelFrame cf;
         cf.channelId = (uint8_t)ch;
         cf.voltsPerDiv = (float)kGain[voltage[ch].gain].voltsPerDiv;
+        if (voltage[ch].coupling == Coupling::GND) {
+            // Sin relé de masa en el hardware: el canal se entrega como 0 V.
+            std::fill(data[ch].begin(), data[ch].end(), 0.0);
+            clipped[ch] = 0;
+        }
         cf.clippedSamples = clipped[ch];
         cf.adcMinVolts = (float)((0.0 - rawZero(ch)) / countsPerVolt(ch));
         cf.adcMaxVolts = (float)((kAdcMax - rawZero(ch)) / countsPerVolt(ch));

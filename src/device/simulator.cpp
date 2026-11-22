@@ -42,6 +42,13 @@ bool Simulator::setChannelEnabled(int channel, bool enabled) {
     return true;
 }
 
+bool Simulator::setCoupling(int channel, Coupling value) {
+    if (channel < 0 || channel >= (int)kChannels) return false;
+    std::lock_guard<std::mutex> lock(mutex);
+    coupling[channel] = value; // la senal simulada no tiene continua: AC == DC; GND -> 0 V
+    return true;
+}
+
 bool Simulator::setTriggerSlope(TriggerSlope slopeValue) {
     std::lock_guard<std::mutex> lock(mutex);
     slope = slopeValue;
@@ -74,6 +81,7 @@ void Simulator::threadMain() {
         if (sampling.load()) {
             double screenSeconds, chVoltsPerDiv[kChannels];
             bool chEnabled[kChannels];
+            bool chGround[kChannels];
             TriggerSlope currentSlope;
             {
                 std::lock_guard<std::mutex> lock(mutex);
@@ -81,6 +89,7 @@ void Simulator::threadMain() {
                 for (unsigned i = 0; i < kChannels; ++i) {
                     chVoltsPerDiv[i] = voltsPerDiv[i];
                     chEnabled[i] = channelEnabled[i];
+                    chGround[i] = coupling[i] == Coupling::GND;
                 }
                 currentSlope = slope;
             }
@@ -113,8 +122,8 @@ void Simulator::threadMain() {
                 for (unsigned i = 0; i < kSamplesPerChannel; ++i) {
                     const double t = (double)i / samplerate;
                     const double noise = ((double)std::rand() / RAND_MAX - 0.5) * 0.05 * amplitude;
-                    cf.samples[i] =
-                        (float)(slopeSign * amplitude * std::sin(2.0 * M_PI * freq * t + phase) + noise);
+                    cf.samples[i] = chGround[ch] ? 0.0f
+                        : (float)(slopeSign * amplitude * std::sin(2.0 * M_PI * freq * t + phase) + noise);
                 }
                 frame.channels.push_back(std::move(cf));
             }

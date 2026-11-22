@@ -79,6 +79,7 @@ void printHelp() {
               << "  timebase <valor><s|ms|us|ns>   Ajusta la duracion total de pantalla (ej: timebase 1ms)\n"
               << "  volts <1|2> <V/div>            Ajusta volts/division del canal (ej: volts 1 0.5)\n"
               << "  channel <1|2|both|none>        Activa/desactiva canales\n"
+              << "  coupling <1|2> <dc|ac|gnd>     Acoplamiento de entrada (gnd: 0 V por software)\n"
               << "  slope <rising|falling>         Pendiente de disparo\n"
               << "  trigger <volts>                Nivel de disparo en volts (ej: trigger 1.0)\n"
               << "  zero <1|2>                     Calibra el cero del canal (entrada a GND) en el grupo actual\n"
@@ -149,6 +150,24 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
             ok = false;
         }
         std::cout << (ok ? "Canales actualizados.\n" : "Argumento invalido para channel.\n");
+    } else if (cmd == "coupling") {
+        std::optional<int> channel;
+        std::optional<Coupling> coupling;
+        if (tokens.size() == 3) {
+            channel = parseChannelIndex(tokens[1]);
+            if (tokens[2] == "dc") coupling = Coupling::DC;
+            else if (tokens[2] == "ac") coupling = Coupling::AC;
+            else if (tokens[2] == "gnd") coupling = Coupling::GND;
+        }
+        if (!channel || !coupling) {
+            std::cout << "Uso: coupling <1|2> <dc|ac|gnd>\n";
+            return;
+        }
+        if (!source.setCoupling(*channel, *coupling)) {
+            std::cout << "No se pudo cambiar el acoplamiento.\n";
+            return;
+        }
+        std::cout << "Canal " << tokens[1] << " en acoplamiento " << tokens[2] << ".\n";
     } else if (cmd == "slope") {
         if (tokens.size() != 2 || (tokens[1] != "rising" && tokens[1] != "falling")) {
             std::cout << "Uso: slope <rising|falling>\n";
@@ -238,7 +257,7 @@ void handleLine(const std::string &line, IDsoSource &source, bool &quit) {
         }
         double correction = 0.0;
         if (!channel || !dso->calibrateZero((unsigned)*channel, &correction)) {
-            std::cout << "zero fallo (canal invalido o aun no hay captura; usa 'start' primero).\n";
+            std::cout << "zero fallo (canal invalido, aun no hay captura -usa 'start'- o canal en coupling gnd, que es por software: pon la entrada a masa real en dc).\n";
             return;
         }
         std::cout << "Cero del canal " << tokens[1] << " calibrado para el grupo actual (correccion "

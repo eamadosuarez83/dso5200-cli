@@ -114,9 +114,10 @@ detalle y no quedó registrado qué pasos fallaron ni el síntoma.
 
 ## 4. Otros pendientes menores
 
-- Acoplamiento **GND**: firma USB aislada (`GainBits=0, below1V=false,
-  below100mV=false`, independiente por canal), pero no expuesta como comando
-  CLI. El bit de relé AC/DC en modo GND no está verificado.
+- ~~Acoplamiento **GND**~~ — **resuelto 22-nov-2026** (README §"Acoplamiento"):
+  esa "firma" era el grupo de 2–10 V, no una masa; no hay relé de GND. Se añadió
+  `coupling <ch> dc|ac|gnd` (GND por software) y el arranque pasó a DC: antes todo
+  se medía en AC sin saberlo.
 - El offset vertical por defecto no siempre centra la señal: comportamiento
   normal de un osciloscopio, no un defecto.
 

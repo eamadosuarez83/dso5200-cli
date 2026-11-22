@@ -58,6 +58,7 @@ Comandos interactivos (se escriben en la terminal donde corre `dso5200basic`):
 | `timebase <valor><s\|ms\|us\|ns>` | Duración total de pantalla (ej. `timebase 1ms`) |
 | `volts <1\|2> <V/div>` | Volts/división del canal (ej. `volts 1 0.5`) |
 | `channel <1\|2\|both\|none>` | Selector de canal(es) activo(s) |
+| `coupling <1\|2> <dc\|ac\|gnd>` | Acoplamiento de entrada; arranca en `dc`. `gnd` es por software (0 V) |
 | `slope <rising\|falling>` | Pendiente de disparo |
 | `trigger <volts>` | Nivel de disparo en volts, sobre CH1 (ej. `trigger 1.0`) |
 | `start` / `stop` | Inicia/detiene el muestreo |
@@ -72,6 +73,27 @@ automáticamente por el product ID (`5200` vs `520a`), que ya identifica el
 modelo aunque el dispositivo todavía no tenga firmware cargado (solo el
 vendor ID cambia de `04b4` a `04b5` al cargarlo) — confirmado contra
 hardware real.
+
+## Acoplamiento AC/DC/GND — añadido 22-nov-2026, verificado contra hardware
+
+Hasta esta fecha el núcleo nunca fijaba el bit de acoplamiento de `CONTROL_SETRELAYS`
+y quedaba en su valor por omisión, que resultó ser **AC**: todo se medía en AC sin
+saberlo y la CAL (cuadrada 0..2 V, 1 kHz) se veía como −1..+1 V.
+
+- `coupling <ch> dc|ac` mueve el relé real del canal (bit `0x02` de `data[3]` para
+  CH1, `0x10` de `data[6]` para CH2). Medido con la CAL a 0.5 V/div: AC → −1.0..+1.0 V;
+  DC → 0.0..+2.0 V, en los dos canales, reversible. Ganancias y cero calibrados siguen
+  valiendo en DC. `doSetGain()` conserva el bit (los relés de grupo están en otros bytes).
+- **El arranque es en DC**, lo que espera cualquiera al usar un osciloscopio.
+- `gnd`: el DSO-5200 **no tiene relé de masa**. La "firma GND" capturada del software de
+  Windows (`GainBits=0`, `below1V=below100mV=false`) es simplemente el grupo de 2–10 V
+  con los `GainBits` que no hacen nada, o sea el rango menos sensible, no una masa real.
+  Aquí el relé se deja en DC y el canal se entrega como 0 V. `zero` se rechaza en `gnd`
+  porque la entrada sigue conectada: para calibrar el cero hay que poner la entrada a
+  masa de verdad en `dc`.
+- Ojo con el disparo en DC: el nivel por omisión (0 V) queda en la base de una señal
+  unipolar como la CAL, el comparador casi no dispara y AUTO fuerza capturas (menos
+  frames por segundo, imagen menos estable). Con `trigger 1` vuelve a ~70 frames/2,5 s.
 
 ## Validado contra hardware real
 
