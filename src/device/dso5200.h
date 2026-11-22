@@ -131,6 +131,7 @@ class Dso5200Control : public IDsoSource {
     static const HwGroup kHwGroup[3];
     static const double kCountsPerVolt[2][3]; // [canal][grupo], medido
     static const double kDacSlope[2], kDacIntercept[2]; // ley DAC de offset -> cuenta ADC, medida
+    static const double kTrigGain, kTrigOffsetCounts; // corrección del comparador de disparo, medida
     double rawFromDac(unsigned channel, double dac) const;
     uint16_t dacFromRaw(unsigned channel, double raw) const;
     double countsPerVolt(unsigned channel) const { return kCountsPerVolt[channel][hwGroupOf(voltage[channel].gain)]; }

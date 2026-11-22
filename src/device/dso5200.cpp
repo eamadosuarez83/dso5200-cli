@@ -148,6 +148,8 @@ const double Dso5200Control::kCountsPerVolt[2][3] = {
 // 21-nov-2026 con las entradas a GND, barriendo el DAC de punta a punta: es la MISMA recta en los
 // tres grupos de relés (el offset se suma después de la etapa de ganancia), con residuos < 2 cuentas
 // en 9 V/div x 2 canales. Fuera de ~[365, 3470] (CH1) / [500, 3770] (CH2) el ADC satura.
+const double Dso5200Control::kTrigGain = 1.23;
+const double Dso5200Control::kTrigOffsetCounts = 25.0;
 const double Dso5200Control::kDacSlope[2] = {0.3290, 0.3128};
 const double Dso5200Control::kDacIntercept[2] = {-120.0, -156.5};
 
@@ -465,10 +467,15 @@ bool Dso5200Control::doSetOffset(unsigned channel, double offset) {
 bool Dso5200Control::doSetTriggerLevel(unsigned channel, double level) {
     trigger.level[channel] = level;
 
-    // El nivel en voltios se pasa a cuentas del ADC con el mismo modelo que la conversión
-    // (rawZero + level*cpv) y de ahí a DAC con la ley del offset del canal. SUPUESTO pendiente de
-    // verificar (T7): el DAC de disparo tiene la misma escala que el DAC de offset del canal fuente.
-    const double levelCounts = rawZero(channel) + level * countsPerVolt(channel);
+    // El nivel en voltios se pasa a cuentas del ADC (level*cpv sobre rawZero) y de ahí a DAC con la
+    // ley del offset del canal, corrigiendo la escala propia del comparador de disparo. MEDIDO
+    // 21-nov-2026 (CH1, CAL ±1 V, ambas pendientes): con la ley del offset sin corregir, el umbral
+    // real era kTrigGain*(pedido) + kTrigOffsetCounts en cuentas sobre el cero. Ventanas de enganche
+    // pedidas: grupo 0.2-1 V [-0.975, +0.625] V y grupo mV (x10) [-0.105, +0.065] V, para una
+    // señal de ±111 cuentas en ambos: misma corrección en cuentas en los dos grupos (1.25/24.5 y
+    // 1.21/26.1). Igual para subida y bajada (un solo comparador).
+    const double wantedCounts = level * countsPerVolt(channel);
+    const double levelCounts = rawZero(channel) + (wantedCounts - kTrigOffsetCounts) / kTrigGain;
     const uint16_t levelValue = dacFromRaw(channel, levelCounts);
 
     if (debugLog) {

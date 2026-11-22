@@ -21,10 +21,16 @@ Complementa al informe de estado; no lo reemplaza.
 >   0.2–1 V/div y 1.92–1.99 V en 2–10 V/div; CAL x10 da 0.206/0.204 V en mV.
 >   Media cruda 511–512, centrada. En el visor: 4 div de pico a pico a
 >   0.5 V/div, estable y sin recorte (confirmado por el usuario).
-> - **Disparo (T7, parcial):** engancha con el nivel en 0 y ±0.5 V y no con
->   ±1.5 V (correcto). Con +0.9 V no engancha, aunque la meseta está en 1.0 V:
->   puede ser histéresis o una escala del DAC de disparo un poco distinta.
->   Pendiente.
+> - **Disparo (T7):** el comparador tiene su propia escala. Con la ley del
+>   offset, el umbral real era `1.23 × pedido + 25` cuentas sobre el cero, lo
+>   mismo en el grupo de 0.2–1 V y en el de mV (corrección en cuentas del ADC)
+>   y lo mismo para subida y bajada. Se midió con las ventanas de enganche,
+>   un método que no depende de la muestra del disparo. Corregido
+>   (`kTrigGain`, `kTrigOffsetCounts`): con la CAL x10 en 0.1 V/div la ventana
+>   pasó de [−0.105, +0.065] V a [−0.105, +0.105] V, simétrica. Los 25 cuentas
+>   de desplazamiento impedían enganchar con señales < ±25 cuentas. Queda una
+>   histéresis de ~9 cuentas: una señal de ±11 cuentas solo engancha con el
+>   nivel cerca de 0.
 > - **Base de tiempo:** el reloj es de **100 MHz**, no 125. Con 125 la CAL
 >   medía 1250.4 Hz en las 12 entradas; con 100 da 1000.3 Hz y ventanas
 >   redondas (10.24 ms … 1.024 s).
