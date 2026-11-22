@@ -124,20 +124,46 @@ const Dso5200Control::GainStep Dso5200Control::kGain[9] = {
     {0, 0.02}, {0, 0.05}, {0, 0.1}, {0, 0.2}, {0, 0.5}, {0, 1.0}, {0, 2.0}, {0, 5.0}, {0, 10.0},
 };
 
-// Índice = gainID / 3. Valores de cuentas/V medidos con rawgaintest (ver arriba); el del grupo de
-// mV es el más débil (derivado vía sonda) - pendiente de las tareas T3/T4 de PLAN_ESCALAS.md.
+// Índice = gainID / 3. Relés de cada grupo físico.
 const Dso5200Control::HwGroup Dso5200Control::kHwGroup[3] = {
-    {true, true, 690.0},   // 20 / 50 / 100 mV
-    {true, false, 112.0},  // 200 / 500 mV / 1 V
-    {false, false, 22.0},  // 2 / 5 / 10 V
+    {true, true},   // 20 / 50 / 100 mV
+    {true, false},  // 200 / 500 mV / 1 V
+    {false, false}, // 2 / 5 / 10 V
 };
 
-// rawZero: SUPUESTO no verificado aún en hardware (tareas T1/T2): la EEPROM calibra el rango del
-// DAC de offset (offsetLimit) para que la fracción 0..1 lleve los 0 V de un extremo al otro del
-// ADC, es decir rawZero = offsetReal * 1023. El comando `zero <canal>` mide la desviación real con
-// la entrada a 0 V y la guarda como corrección aditiva por canal y grupo.
+// Cuentas del ADC por voltio real en la entrada, [canal][grupo]. MEDIDO 21-nov-2026 con la salida
+// CAL del aparato (cuadrada 2 Vpp, 1 kHz), usando la amplitud entre niveles de meseta (`cal`):
+//   grupo 1: CAL con sonda x1 (CH1 amp=223.3, CH2 222.9 cuentas) -> /2 V
+//   grupo 2: CAL con sonda x1 (CH1 22.7, CH2 22.0)                -> /2 V  (resolución baja)
+//   grupo 0: CAL con sonda x10 en grupo 0 y en grupo 1, cpv1 * cociente (CH1 220.8/23.0 = 9.61,
+//            CH2 225.0/22.7 = 9.90); el cociente no depende del factor real de la sonda. ±2-3 %.
+// Los relés son ~x10 por grupo. Los valores anteriores (690/112/22) venían de mediciones con la CAL
+// saturando y una sonda sin caracterizar; 690 y 22 estaban mal (22 por un factor 2).
+const double Dso5200Control::kCountsPerVolt[2][3] = {
+    {1074.0, 111.7, 11.35}, // CH1
+    {1103.0, 111.4, 11.0},  // CH2
+};
+
+// Ley DAC de offset -> cuenta del ADC con la entrada a 0 V: raw = slope*DAC + intercept. MEDIDA
+// 21-nov-2026 con las entradas a GND, barriendo el DAC de punta a punta: es la MISMA recta en los
+// tres grupos de relés (el offset se suma después de la etapa de ganancia), con residuos < 2 cuentas
+// en 9 V/div x 2 canales. Fuera de ~[365, 3470] (CH1) / [500, 3770] (CH2) el ADC satura.
+const double Dso5200Control::kDacSlope[2] = {0.3290, 0.3128};
+const double Dso5200Control::kDacIntercept[2] = {-120.0, -156.5};
+
+double Dso5200Control::rawFromDac(unsigned channel, double dac) const {
+    return kDacSlope[channel] * dac + kDacIntercept[channel];
+}
+
+uint16_t Dso5200Control::dacFromRaw(unsigned channel, double raw) const {
+    const double dac = (raw - kDacIntercept[channel]) / kDacSlope[channel];
+    return (uint16_t)std::clamp(dac + 0.5, 0.0, 4095.0); // DAC de 12 bits
+}
+
+// Cuenta del ADC que corresponde a 0 V: sale directamente del DAC de offset enviado, más la
+// corrección opcional medida con `zero` (por canal y grupo).
 double Dso5200Control::rawZero(unsigned channel) const {
-    return voltage[channel].offsetReal * kAdcMax + zeroCorrection[channel][hwGroupOf(voltage[channel].gain)];
+    return rawFromDac(channel, voltage[channel].offsetDac) + zeroCorrection[channel][hwGroupOf(voltage[channel].gain)];
 }
 
 bool Dso5200Control::calibrateZero(unsigned channel, double *correctionOut) {
@@ -145,7 +171,7 @@ bool Dso5200Control::calibrateZero(unsigned channel, double *correctionOut) {
     std::lock_guard<std::mutex> lock(ioMutex);
     if (lastRawMean[channel] < 0.0) return false;
     const unsigned group = hwGroupOf(voltage[channel].gain);
-    zeroCorrection[channel][group] = lastRawMean[channel] - voltage[channel].offsetReal * kAdcMax;
+    zeroCorrection[channel][group] = lastRawMean[channel] - rawFromDac(channel, voltage[channel].offsetDac);
     if (correctionOut) *correctionOut = zeroCorrection[channel][group];
     return true;
 }
@@ -316,7 +342,10 @@ bool Dso5200Control::updateSamplerate(unsigned downsamplerValue, bool fastRate) 
 bool Dso5200Control::applyTimebaseTableEntry(unsigned index, double *windowOut) {
     const TimebaseEntry &entry = kSlowTimebaseTable[index];
     const unsigned divider = 2u * (0x10000u - entry.slow) + 4u - entry.fast;
-    const double sr = kSingleMax / divider;
+    // Reloj base de 100 MHz (kSingleBase), no 125 MHz (kSingleMax). MEDIDO 21-nov-2026 con la CAL de
+    // 1 kHz: con kSingleMax la frecuencia salía 1250.4 Hz en las 12 entradas de la tabla (razón 1.25
+    // exacta); con 100 MHz las ventanas quedan en valores redondos (10.24 ms, 20.48 ms ... 1.024 s).
+    const double sr = kSingleBase / divider;
 
     samplerateCommand.setSamplerateFast(entry.fast);
     samplerateCommand.setSamplerateSlow(entry.slow);
@@ -348,7 +377,7 @@ bool Dso5200Control::doSetRecordTime(double duration) {
     for (unsigned i = 0; i < kSlowTimebaseTableSize; ++i) {
         const TimebaseEntry &entry = kSlowTimebaseTable[i];
         const unsigned divider = 2u * (0x10000u - entry.slow) + 4u - entry.fast;
-        const double window = (double)kRecordLengthSingle * divider / kSingleMax;
+        const double window = (double)kRecordLengthSingle * divider / kSingleBase;
         const double error = std::abs(std::log(window / duration));
         if (error < bestError) {
             bestError = error;
@@ -415,17 +444,17 @@ bool Dso5200Control::debugSetRawGain(unsigned channel, uint8_t gainBits, bool be
     return rc >= 0;
 }
 
+// `offset` = posición de los 0 V como fracción 0..1 del rango del ADC (0.5 = centro, cuenta 511.5).
+// Se traduce a DAC con la ley medida (kDacSlope/kDacIntercept). Ya no se usa la tabla offsetLimit de
+// la EEPROM: se comprobó (21-nov-2026) que este código la lee desalineada - la EEPROM guarda 10
+// pasos por canal (10 mV..10 V) y aquí se leen 9, así que CH1 usaba la entrada del paso anterior y
+// CH2 arrancaba una entrada corrida (su gainID 0 leía el paso de 10 V de CH1).
 bool Dso5200Control::doSetOffset(unsigned channel, double offset) {
-    Offset &limit = offsetLimit[channel].step[voltage[channel].gain];
-    const unsigned short minimum =
-        ((unsigned short)*((unsigned char *)&limit.start) << 8) + *((unsigned char *)&limit.start + 1);
-    const unsigned short maximum =
-        ((unsigned short)*((unsigned char *)&limit.end) << 8) + *((unsigned char *)&limit.end + 1);
-    const unsigned short offsetValue = (unsigned short)(offset * (maximum - minimum) + minimum + 0.5);
-    const double offsetReal = (double)(offsetValue - minimum) / (maximum - minimum);
+    offset = std::clamp(offset, 0.0, 1.0);
+    const uint16_t dac = dacFromRaw(channel, offset * kAdcMax);
 
-    offsetCommand.setChannel(channel, offsetValue);
-    voltage[channel].offsetReal = offsetReal;
+    offsetCommand.setChannel(channel, dac);
+    voltage[channel].offsetDac = dac;
     voltage[channel].offset = offset;
 
     device->controlWrite(&offsetCommand);
@@ -436,24 +465,16 @@ bool Dso5200Control::doSetOffset(unsigned channel, double offset) {
 bool Dso5200Control::doSetTriggerLevel(unsigned channel, double level) {
     trigger.level[channel] = level;
 
-    Offset &limit = offsetLimit[channel].step[voltage[channel].gain];
-    const unsigned short minimum =
-        ((unsigned short)*((unsigned char *)&limit.start) << 8) + *((unsigned char *)&limit.start + 1);
-    const unsigned short maximum =
-        ((unsigned short)*((unsigned char *)&limit.end) << 8) + *((unsigned char *)&limit.end + 1);
-
-    // Mismo modelo que convertRawDataToSamples(): el nivel en voltios se pasa a cuentas del ADC
-    // (rawZero + level*cuentasPorVolt) y de ahí a fracción del rango, que se mapea al rango del DAC
-    // igual que el offset. Antes usaba level/voltsPerDiv (divisiones) como si fuera fracción de
-    // pantalla. SUPUESTO pendiente de T7: el comparador de disparo comparte la escala del DAC de offset.
-    const double levelCounts = rawZero(channel) + level * hwGroup(channel).countsPerVolt;
-    const double levelFraction = std::clamp(levelCounts / kAdcMax, 0.0, 1.0);
-    const unsigned short levelValue = (unsigned short)(levelFraction * (maximum - minimum) + minimum + 0.5);
+    // El nivel en voltios se pasa a cuentas del ADC con el mismo modelo que la conversión
+    // (rawZero + level*cpv) y de ahí a DAC con la ley del offset del canal. SUPUESTO pendiente de
+    // verificar (T7): el DAC de disparo tiene la misma escala que el DAC de offset del canal fuente.
+    const double levelCounts = rawZero(channel) + level * countsPerVolt(channel);
+    const uint16_t levelValue = dacFromRaw(channel, levelCounts);
 
     if (debugLog) {
         std::cerr << "[dso5200] doSetTriggerLevel(ch=" << channel << ", level=" << level
-                  << "V): gain=" << voltage[channel].gain << " levelCounts=" << levelCounts
-                  << " offsetReal=" << voltage[channel].offsetReal << " minimum=" << minimum << " maximum=" << maximum
+                  << "V): gain=" << voltage[channel].gain << " offsetDac=" << voltage[channel].offsetDac
+                  << " rawZero=" << rawZero(channel) << " levelCounts=" << levelCounts
                   << " -> levelValue=" << levelValue << " (trigger.source=" << trigger.source << ")\n";
     }
 
@@ -617,7 +638,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         data[channel].resize(totalSampleCount);
 
         const double zero = rawZero(channel);
-        const double countsPerVolt = hwGroup(channel).countsPerVolt;
+        const double cpvCh = countsPerVolt(channel);
         unsigned long long chSum = 0;
 
         unsigned bufferPosition = trigger.point * 2;
@@ -641,7 +662,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
             }
             chSum += rawValue;
             if (rawValue == 0 || rawValue >= (unsigned short)kAdcMax) ++clipped[channel];
-            data[channel][pos] = ((double)rawValue - zero) / countsPerVolt;
+            data[channel][pos] = ((double)rawValue - zero) / cpvCh;
         }
         if (totalSampleCount) lastRawMean[channel] = (double)chSum / (double)totalSampleCount;
     } else {
@@ -649,7 +670,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
             data[channel].resize(totalSampleCount / kChannels);
 
             const double zero = rawZero(channel);
-            const double countsPerVolt = hwGroup(channel).countsPerVolt;
+            const double cpvCh = countsPerVolt(channel);
             unsigned long long chSum = 0;
             const unsigned extraBitsIndex = 8 - channel * 2;
 
@@ -672,7 +693,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
                 }
                 chSum += rawValue;
                 if (rawValue == 0 || rawValue >= (unsigned short)kAdcMax) ++clipped[channel];
-                data[channel][realPosition] = ((double)rawValue - zero) / countsPerVolt;
+                data[channel][realPosition] = ((double)rawValue - zero) / cpvCh;
             }
             if (!data[channel].empty()) lastRawMean[channel] = (double)chSum / (double)data[channel].size();
         }
@@ -684,8 +705,8 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         cf.channelId = (uint8_t)ch;
         cf.voltsPerDiv = (float)kGain[voltage[ch].gain].voltsPerDiv;
         cf.clippedSamples = clipped[ch];
-        cf.adcMinVolts = (float)((0.0 - rawZero(ch)) / hwGroup(ch).countsPerVolt);
-        cf.adcMaxVolts = (float)((kAdcMax - rawZero(ch)) / hwGroup(ch).countsPerVolt);
+        cf.adcMinVolts = (float)((0.0 - rawZero(ch)) / countsPerVolt(ch));
+        cf.adcMaxVolts = (float)((kAdcMax - rawZero(ch)) / countsPerVolt(ch));
         lastClipped[ch] = clipped[ch];
         cf.samples.reserve(data[ch].size());
         for (double v : data[ch]) cf.samples.push_back((float)v);
@@ -715,7 +736,7 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         const double hi = hiN ? hiSum / hiN : mean;
         const double lo = loN ? loSum / loN : mean;
         const unsigned ch = rawStatsChannel;
-        const double cpv = hwGroup(ch).countsPerVolt;
+        const double cpv = countsPerVolt(ch);
         std::cerr << "[cal] ch" << (ch + 1) << " meseta alto=" << hi << " bajo=" << lo << " amp=" << (hi - lo)
                   << " ciclo=" << (100.0 * hiN / rawCount) << "% | modelo: grupo=" << hwGroupOf(voltage[ch].gain)
                   << " cpv=" << cpv << " rawZero=" << rawZero(ch) << " Vamp=" << ((hi - lo) / cpv)

@@ -66,11 +66,9 @@ class Dso5200Control : public IDsoSource {
 
   private:
     struct VoltageSettings {
-        // Offset vertical como fracción 0..1 del rango del DAC de offset (EEPROM). 0.5 coloca
-        // los 0 V a mitad del ADC (ver rawZero()); con 0.0 los 0 V caen en la cuenta 0 y la
-        // mitad negativa de la señal se recorta.
+        // Posición de los 0 V como fracción 0..1 del rango del ADC (0.5 = centro). Ver doSetOffset().
         double offset = 0.5;
-        double offsetReal = 0.5;
+        uint16_t offsetDac = 0; // valor enviado al DAC de offset (12 bits)
         unsigned gain = 4; // índice en kGain, por omisión 0.5 V/div
         bool used = true;
     };
@@ -129,12 +127,15 @@ class Dso5200Control : public IDsoSource {
     struct HwGroup {
         bool below1V;
         bool below100mV;
-        double countsPerVolt; // cuentas del ADC por voltio real en la entrada
     };
     static const HwGroup kHwGroup[3];
+    static const double kCountsPerVolt[2][3]; // [canal][grupo], medido
+    static const double kDacSlope[2], kDacIntercept[2]; // ley DAC de offset -> cuenta ADC, medida
+    double rawFromDac(unsigned channel, double dac) const;
+    uint16_t dacFromRaw(unsigned channel, double raw) const;
+    double countsPerVolt(unsigned channel) const { return kCountsPerVolt[channel][hwGroupOf(voltage[channel].gain)]; }
     static constexpr double kAdcMax = 1023.0; // ADC de 10 bits
     static unsigned hwGroupOf(unsigned gainID) { return gainID / 3; }
-    const HwGroup &hwGroup(unsigned channel) const { return kHwGroup[hwGroupOf(voltage[channel].gain)]; }
     // Cuenta del ADC que corresponde a 0 V en la entrada, con el offset y el grupo actuales.
     double rawZero(unsigned channel) const;
     // Corrección aditiva (en cuentas) de rawZero por canal y grupo, fijada con el comando `zero`.

@@ -3,6 +3,33 @@
 Fecha: 21-nov-2026. Base: commit `0944abb` + `docs/INFORME_ESTADO.md`.
 Complementa al informe de estado; no lo reemplaza.
 
+> ## ✅ Sesión con hardware del 21-nov-2026: resultados
+>
+> Material: la CAL del aparato (cuadrada de ±1 V, 1 kHz), las sondas en x1/x10
+> y las entradas a GND. Datos crudos en el mensaje del commit.
+>
+> - **Cero:** a GND la cuenta cruda depende **solo del DAC de offset**, con una
+>   recta por canal **idéntica en los 3 grupos**: CH1 `0.3290·DAC − 120.0`,
+>   CH2 `0.3128·DAC − 156.5` (residuo < 2 cuentas). El supuesto
+>   `offset × 1023` era falso.
+> - **EEPROM:** la tabla `offsetLimit` tiene 10 pasos por canal (10 mV…10 V) y
+>   el código lee 9, así que estaba desalineada en los dos canales. Ya no se usa.
+> - **Ganancia (cuentas/V):** grupo de mV CH1 1074 / CH2 1103 (±2–3 %),
+>   grupo 0.2–1 V 111.7 / 111.4, grupo 2–10 V 11.35 / 11.0. Los relés son
+>   ~×10. Los valores 690 y 22 estaban mal.
+> - **Validación (T6):** con el modelo nuevo, CAL x1 da 2.00 V ±0.003 en
+>   0.2–1 V/div y 1.92–1.99 V en 2–10 V/div; CAL x10 da 0.206/0.204 V en mV.
+>   Media cruda 511–512, centrada. En el visor: 4 div de pico a pico a
+>   0.5 V/div, estable y sin recorte (confirmado por el usuario).
+> - **Disparo (T7, parcial):** engancha con el nivel en 0 y ±0.5 V y no con
+>   ±1.5 V (correcto). Con +0.9 V no engancha, aunque la meseta está en 1.0 V:
+>   puede ser histéresis o una escala del DAC de disparo un poco distinta.
+>   Pendiente.
+> - **Base de tiempo:** el reloj es de **100 MHz**, no 125. Con 125 la CAL
+>   medía 1250.4 Hz en las 12 entradas; con 100 da 1000.3 Hz y ventanas
+>   redondas (10.24 ms … 1.024 s).
+> - Sondas: CH1 ×9.72 y CH2 ×9.81 reales en la posición x10.
+
 > **Actualización 21-nov-2026:** la fórmula de §3 ya está en el código
 > (T5 en su parte de software: `kHwGroup`, `rawZero()`, nivel de disparo,
 > comando `zero <ch>`, offset por omisión 0.5). **No está verificada en el
