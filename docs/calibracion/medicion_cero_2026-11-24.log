@@ -1,0 +1,613 @@
+stop CPU
+... WROTE: 792 bytes, 10 segments, avg 79
+reset CPU
+2nd stage: write external memory
+stop CPU
+2nd stage: write on-chip memory
+... WROTE: 4690 bytes, 49 segments, avg 95
+reset CPU
+Dispositivo sin firmware detectado, subiendo firmware DSO-5200A...
+Firmware cargado, esperando a que el dispositivo se reconecte...
+Conectado a DSO-5200A.
+Streaming de muestras en 127.0.0.1:5200 (viewer/dso_viewer.py)
+Comandos disponibles:
+  timebase <valor><s|ms|us|ns>   Ajusta la duracion total de pantalla (ej: timebase 1ms)
+  volts <1|2> <V/div>            Ajusta volts/division del canal (ej: volts 1 0.5)
+  channel <1|2|both|none>        Activa/desactiva canales
+  coupling <1|2> <dc|ac|gnd>     Acoplamiento de entrada (gnd: 0 V por software)
+  slope <rising|falling>         Pendiente de disparo
+  trigger <volts>                Nivel de disparo en volts (ej: trigger 1.0)
+  zero <1|2>                     Calibra el cero del canal (entrada a GND) en el grupo actual
+  start                          Inicia el muestreo
+  stop                           Detiene el muestreo
+  status                         Muestra el estado actual
+  help                           Muestra esta ayuda
+  quit                           Sale del programa
+
+> Timebase ajustado a 1ms de pantalla.
+> Muestreo iniciado.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 10 V/div.
+> Canal 2 ajustado a 10 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.764723 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.280587 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=509 max=515 mean=512.185 pp=6 n=10240
+[cal] ch1 meseta alto=513.243 bajo=511.587 amp=1.65629 ciclo=36.084% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.145929 Vbajo=-0.0465823
+[cal] ch1 raw min=509 max=515 mean=512.245 pp=6 n=10240
+[cal] ch1 meseta alto=513.242 bajo=511.599 amp=1.64229 ciclo=39.2871% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.144695 Vbajo=-0.0454976
+[cal] ch1 raw min=509 max=515 mean=512.429 pp=6 n=10240
+[cal] ch1 meseta alto=513.286 bajo=511.664 amp=1.62259 ciclo=47.1777% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.142959 Vbajo=-0.0398087
+[cal] ch1 raw min=509 max=515 mean=512.16 pp=6 n=10240
+[cal] ch1 meseta alto=513.217 bajo=511.59 amp=1.62678 ciclo=35.0293% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.143329 Vbajo=-0.0463095
+[cal] ch1 raw min=509 max=515 mean=512.167 pp=6 n=10240
+[cal] ch1 meseta alto=513.249 bajo=511.527 amp=1.72222 ciclo=37.1973% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.151737 Vbajo=-0.0518991
+[cal] ch1 raw min=509 max=515 mean=512.404 pp=6 n=10240
+[cal] ch1 meseta alto=513.285 bajo=511.651 amp=1.63466 ciclo=46.1133% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.144023 Vbajo=-0.0409801
+[cal] ch1 raw min=508 max=515 mean=512.052 pp=7 n=10240
+[cal] ch1 meseta alto=513.226 bajo=511.516 amp=1.70919 ciclo=31.3379% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.150589 Vbajo=-0.0528014
+[cal] ch1 raw min=508 max=515 mean=512.146 pp=7 n=10240
+[cal] ch1 meseta alto=513.235 bajo=511.541 amp=1.69407 ciclo=35.7129% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.149258 Vbajo=-0.0506284
+[cal] ch1 raw min=508 max=515 mean=512.176 pp=7 n=10240
+[cal] ch1 meseta alto=513.273 bajo=511.533 amp=1.73995 ciclo=36.9727% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.1533 Vbajo=-0.0513273
+[cal] ch1 raw min=508 max=515 mean=512.07 pp=7 n=10240
+[cal] ch1 meseta alto=513.241 bajo=511.482 amp=1.75944 ciclo=33.4473% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.155016 Vbajo=-0.0558583
+[cal] ch1 raw min=509 max=515 mean=512.351 pp=6 n=10240
+[cal] ch1 meseta alto=513.279 bajo=511.63 amp=1.64898 ciclo=43.7402% | modelo: grupo=2 cpv=11.35 rawZero=512.116 Vamp=0.145285 Vbajo=-0.0427862
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=508 max=515 mean=512.205 pp=7 n=10240
+[cal] ch2 meseta alto=513.191 bajo=511.687 amp=1.50391 ciclo=34.4824% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.136719 Vbajo=-0.0213361
+[cal] ch2 raw min=509 max=515 mean=512.02 pp=6 n=10240
+[cal] ch2 meseta alto=513.163 bajo=511.615 amp=1.54861 ciclo=26.1816% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.140783 Vbajo=-0.0278748
+[cal] ch2 raw min=509 max=515 mean=512.047 pp=6 n=10240
+[cal] ch2 meseta alto=513.16 bajo=511.617 amp=1.54238 ciclo=27.8906% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.140217 Vbajo=-0.027646
+[cal] ch2 raw min=509 max=515 mean=512.077 pp=6 n=10240
+[cal] ch2 meseta alto=513.197 bajo=511.605 amp=1.59157 ciclo=29.6387% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.144688 Vbajo=-0.0287501
+[cal] ch2 raw min=509 max=515 mean=511.992 pp=6 n=10240
+[cal] ch2 meseta alto=512.395 bajo=510.734 amp=1.66119 ciclo=75.7715% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.151017 Vbajo=-0.107983
+[cal] ch2 raw min=508 max=515 mean=511.971 pp=7 n=10240
+[cal] ch2 meseta alto=512.413 bajo=510.603 amp=1.81053 ciclo=75.5762% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.164594 Vbajo=-0.119857
+[cal] ch2 raw min=508 max=515 mean=512.272 pp=7 n=10240
+[cal] ch2 meseta alto=513.198 bajo=511.691 amp=1.50685 ciclo=38.5449% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.136986 Vbajo=-0.0209654
+[cal] ch2 raw min=509 max=515 mean=512.038 pp=6 n=10240
+[cal] ch2 meseta alto=513.183 bajo=511.599 amp=1.58404 ciclo=27.7344% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.144004 Vbajo=-0.029303
+[cal] ch2 raw min=509 max=516 mean=512.294 pp=7 n=10240
+[cal] ch2 meseta alto=513.252 bajo=511.668 amp=1.58483 ciclo=39.541% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.144075 Vbajo=-0.0230732
+[cal] ch2 raw min=509 max=515 mean=511.982 pp=6 n=10240
+[cal] ch2 meseta alto=512.433 bajo=510.699 amp=1.7337 ciclo=73.9746% | modelo: grupo=2 cpv=11 rawZero=511.921 Vamp=0.157609 Vbajo=-0.111086
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 5 V/div.
+> Canal 2 ajustado a 5 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.878687 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.361739 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=509 max=515 mean=512.227 pp=6 n=10240
+[cal] ch1 meseta alto=513.272 bajo=511.551 amp=1.7216 ciclo=39.2969% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.151683 Vbajo=-0.059839
+[cal] ch1 raw min=509 max=515 mean=512.213 pp=6 n=10240
+[cal] ch1 meseta alto=513.228 bajo=511.591 amp=1.63686 ciclo=38.0273% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.144217 Vbajo=-0.0562788
+[cal] ch1 raw min=509 max=515 mean=512.143 pp=6 n=10240
+[cal] ch1 meseta alto=513.227 bajo=511.542 amp=1.68508 ciclo=35.6738% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.148465 Vbajo=-0.0605779
+[cal] ch1 raw min=508 max=515 mean=512.217 pp=7 n=10240
+[cal] ch1 meseta alto=513.273 bajo=511.537 amp=1.73618 ciclo=39.1797% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.152967 Vbajo=-0.0610076
+[cal] ch1 raw min=508 max=515 mean=512.172 pp=7 n=10240
+[cal] ch1 meseta alto=513.23 bajo=511.556 amp=1.67435 ciclo=36.8359% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.14752 Vbajo=-0.0593994
+[cal] ch1 raw min=509 max=515 mean=512.22 pp=6 n=10240
+[cal] ch1 meseta alto=513.267 bajo=511.568 amp=1.69887 ciclo=38.3691% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.14968 Vbajo=-0.0582656
+[cal] ch1 raw min=508 max=515 mean=512.178 pp=7 n=10240
+[cal] ch1 meseta alto=513.251 bajo=511.543 amp=1.70772 ciclo=37.1875% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.15046 Vbajo=-0.0604953
+[cal] ch1 raw min=509 max=515 mean=512.151 pp=6 n=10240
+[cal] ch1 meseta alto=513.264 bajo=511.536 amp=1.72779 ciclo=35.5762% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.152228 Vbajo=-0.0611177
+[cal] ch1 raw min=509 max=515 mean=512.333 pp=6 n=10240
+[cal] ch1 meseta alto=513.302 bajo=511.625 amp=1.67748 ciclo=42.1973% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.147795 Vbajo=-0.0532969
+[cal] ch1 raw min=509 max=515 mean=512.249 pp=6 n=10240
+[cal] ch1 meseta alto=513.261 bajo=511.572 amp=1.68879 ciclo=40.1172% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.148792 Vbajo=-0.0579533
+[cal] ch1 raw min=508 max=515 mean=512.07 pp=7 n=10240
+[cal] ch1 meseta alto=513.243 bajo=511.476 amp=1.76745 ciclo=33.623% | modelo: grupo=2 cpv=11.35 rawZero=512.23 Vamp=0.155722 Vbajo=-0.066409
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=515 mean=512.01 pp=6 n=10240
+[cal] ch2 meseta alto=513.162 bajo=511.573 amp=1.58844 ciclo=27.4707% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.144403 Vbajo=-0.0390205
+[cal] ch2 raw min=508 max=516 mean=512.147 pp=8 n=10240
+[cal] ch2 meseta alto=513.219 bajo=511.616 amp=1.60351 ciclo=33.1543% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.145774 Vbajo=-0.0351734
+[cal] ch2 raw min=509 max=515 mean=511.945 pp=6 n=10240
+[cal] ch2 meseta alto=512.395 bajo=510.712 amp=1.68284 ciclo=73.252% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.152986 Vbajo=-0.117294
+[cal] ch2 raw min=509 max=515 mean=511.966 pp=6 n=10240
+[cal] ch2 meseta alto=512.417 bajo=510.708 amp=1.70941 ciclo=73.6035% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.155401 Vbajo=-0.11771
+[cal] ch2 raw min=509 max=515 mean=512.065 pp=6 n=10240
+[cal] ch2 meseta alto=513.161 bajo=511.628 amp=1.53356 ciclo=28.5254% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.139415 Vbajo=-0.034078
+[cal] ch2 raw min=509 max=515 mean=512.04 pp=6 n=10240
+[cal] ch2 meseta alto=513.147 bajo=511.617 amp=1.53026 ciclo=27.627% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.139115 Vbajo=-0.0350685
+[cal] ch2 raw min=509 max=515 mean=511.905 pp=6 n=10240
+[cal] ch2 meseta alto=512.356 bajo=510.723 amp=1.63339 ciclo=72.3535% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.14849 Vbajo=-0.116316
+[cal] ch2 raw min=509 max=515 mean=512.033 pp=6 n=10240
+[cal] ch2 meseta alto=513.194 bajo=511.586 amp=1.60762 ciclo=27.832% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.146147 Vbajo=-0.0378615
+[cal] ch2 raw min=509 max=515 mean=511.979 pp=6 n=10240
+[cal] ch2 meseta alto=512.385 bajo=510.724 amp=1.66176 ciclo=75.5566% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.151069 Vbajo=-0.116273
+[cal] ch2 raw min=509 max=515 mean=511.953 pp=6 n=10240
+[cal] ch2 meseta alto=512.37 bajo=510.702 amp=1.66797 ciclo=75% | modelo: grupo=2 cpv=11 rawZero=512.003 Vamp=0.151634 Vbajo=-0.1182
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 2 V/div.
+> Canal 2 ajustado a 2 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.753199 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.229024 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=509 max=515 mean=512.278 pp=6 n=10240
+[cal] ch1 meseta alto=513.256 bajo=511.617 amp=1.63874 ciclo=40.2832% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.144383 Vbajo=-0.0428812
+[cal] ch1 raw min=509 max=515 mean=512.229 pp=6 n=10240
+[cal] ch1 meseta alto=513.255 bajo=511.582 amp=1.67262 ciclo=38.6328% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.147368 Vbajo=-0.0459707
+[cal] ch1 raw min=508 max=515 mean=512.32 pp=7 n=10240
+[cal] ch1 meseta alto=513.329 bajo=511.576 amp=1.75269 ciclo=42.4414% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.154422 Vbajo=-0.0465066
+[cal] ch1 raw min=508 max=515 mean=512.213 pp=7 n=10240
+[cal] ch1 meseta alto=513.243 bajo=511.584 amp=1.6594 ciclo=37.9102% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.146203 Vbajo=-0.0458751
+[cal] ch1 raw min=508 max=515 mean=512.185 pp=7 n=10240
+[cal] ch1 meseta alto=513.268 bajo=511.528 amp=1.73996 ciclo=37.7832% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.153301 Vbajo=-0.0508064
+[cal] ch1 raw min=508 max=516 mean=512.294 pp=8 n=10240
+[cal] ch1 meseta alto=513.302 bajo=511.586 amp=1.71655 ciclo=41.2598% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.151238 Vbajo=-0.0456825
+[cal] ch1 raw min=508 max=515 mean=512.114 pp=7 n=10240
+[cal] ch1 meseta alto=513.216 bajo=511.56 amp=1.65583 ciclo=33.4473% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.145888 Vbajo=-0.0479522
+[cal] ch1 raw min=509 max=515 mean=512.221 pp=6 n=10240
+[cal] ch1 meseta alto=513.257 bajo=511.6 amp=1.65662 ciclo=37.4805% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.145958 Vbajo=-0.0443981
+[cal] ch1 raw min=508 max=515 mean=512.095 pp=7 n=10240
+[cal] ch1 meseta alto=513.257 bajo=511.451 amp=1.80605 ciclo=35.6836% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.159124 Vbajo=-0.0575812
+[cal] ch1 raw min=508 max=515 mean=512.208 pp=7 n=10240
+[cal] ch1 meseta alto=513.281 bajo=511.579 amp=1.70205 ciclo=36.9824% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.14996 Vbajo=-0.0463043
+[cal] ch1 raw min=508 max=515 mean=512.211 pp=7 n=10240
+[cal] ch1 meseta alto=513.231 bajo=511.568 amp=1.66276 ciclo=38.623% | modelo: grupo=2 cpv=11.35 rawZero=512.104 Vamp=0.146499 Vbajo=-0.0472125
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=515 mean=511.968 pp=6 n=10240
+[cal] ch2 meseta alto=512.413 bajo=510.704 amp=1.70905 ciclo=73.9648% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.155368 Vbajo=-0.106013
+[cal] ch2 raw min=508 max=515 mean=511.926 pp=7 n=10240
+[cal] ch2 meseta alto=512.382 bajo=510.67 amp=1.71233 ciclo=73.3594% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.155667 Vbajo=-0.1091
+[cal] ch2 raw min=509 max=515 mean=511.897 pp=6 n=10240
+[cal] ch2 meseta alto=512.352 bajo=510.708 amp=1.64442 ciclo=72.3047% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.149493 Vbajo=-0.105649
+[cal] ch2 raw min=508 max=515 mean=512.092 pp=7 n=10240
+[cal] ch2 meseta alto=513.197 bajo=511.604 amp=1.59286 ciclo=30.625% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.144806 Vbajo=-0.0241763
+[cal] ch2 raw min=509 max=515 mean=512.04 pp=6 n=10240
+[cal] ch2 meseta alto=513.165 bajo=511.622 amp=1.54304 ciclo=27.0898% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.140277 Vbajo=-0.0224911
+[cal] ch2 raw min=509 max=515 mean=512.071 pp=6 n=10240
+[cal] ch2 meseta alto=513.205 bajo=511.588 amp=1.61763 ciclo=29.873% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.147058 Vbajo=-0.0256511
+[cal] ch2 raw min=509 max=515 mean=512.138 pp=6 n=10240
+[cal] ch2 meseta alto=513.2 bajo=511.617 amp=1.58283 ciclo=32.8809% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.143894 Vbajo=-0.0229528
+[cal] ch2 raw min=509 max=515 mean=512.012 pp=6 n=10240
+[cal] ch2 meseta alto=513.22 bajo=511.53 amp=1.68987 ciclo=28.5254% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.153624 Vbajo=-0.0308691
+[cal] ch2 raw min=509 max=515 mean=511.994 pp=6 n=10240
+[cal] ch2 meseta alto=512.432 bajo=510.698 amp=1.73433 ciclo=74.7461% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.157667 Vbajo=-0.10653
+[cal] ch2 raw min=509 max=515 mean=511.916 pp=6 n=10240
+[cal] ch2 meseta alto=512.372 bajo=510.705 amp=1.66718 ciclo=72.6562% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.151562 Vbajo=-0.105893
+[cal] ch2 raw min=509 max=515 mean=512.21 pp=6 n=10240
+[cal] ch2 meseta alto=513.246 bajo=511.639 amp=1.60662 ciclo=35.5566% | modelo: grupo=2 cpv=11 rawZero=511.87 Vamp=0.146057 Vbajo=-0.020967
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 1 V/div.
+> Canal 2 ajustado a 1 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.881617 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.374141 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=508 max=515 mean=512.142 pp=7 n=10240
+[cal] ch1 meseta alto=513.219 bajo=511.574 amp=1.64547 ciclo=34.541% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0147312 Vbajo=-0.005897
+[cal] ch1 raw min=509 max=515 mean=512.17 pp=6 n=10240
+[cal] ch1 meseta alto=513.214 bajo=511.623 amp=1.59027 ciclo=34.375% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.014237 Vbajo=-0.00545438
+[cal] ch1 raw min=509 max=515 mean=512.192 pp=6 n=10240
+[cal] ch1 meseta alto=513.267 bajo=511.553 amp=1.71322 ciclo=37.2754% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0153377 Vbajo=-0.00608001
+[cal] ch1 raw min=508 max=515 mean=512.196 pp=7 n=10240
+[cal] ch1 meseta alto=513.257 bajo=511.544 amp=1.71295 ciclo=38.0469% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0153353 Vbajo=-0.00616507
+[cal] ch1 raw min=509 max=515 mean=512.224 pp=6 n=10240
+[cal] ch1 meseta alto=513.269 bajo=511.546 amp=1.72243 ciclo=39.3457% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0154201 Vbajo=-0.00614583
+[cal] ch1 raw min=508 max=515 mean=512.067 pp=7 n=10240
+[cal] ch1 meseta alto=513.219 bajo=511.484 amp=1.73522 ciclo=33.5938% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0155346 Vbajo=-0.0067023
+[cal] ch1 raw min=509 max=515 mean=512.131 pp=6 n=10240
+[cal] ch1 meseta alto=513.255 bajo=511.541 amp=1.71428 ciclo=34.4531% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0153472 Vbajo=-0.00619333
+[cal] ch1 raw min=508 max=515 mean=512.124 pp=7 n=10240
+[cal] ch1 meseta alto=513.235 bajo=511.534 amp=1.70085 ciclo=34.6582% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0152269 Vbajo=-0.00625306
+[cal] ch1 raw min=509 max=515 mean=512.135 pp=6 n=10240
+[cal] ch1 meseta alto=513.255 bajo=511.53 amp=1.72581 ciclo=35.0586% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0154504 Vbajo=-0.00629358
+[cal] ch1 raw min=509 max=515 mean=512.156 pp=6 n=10240
+[cal] ch1 meseta alto=513.241 bajo=511.552 amp=1.68941 ciclo=35.7617% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0151245 Vbajo=-0.00609334
+[cal] ch1 raw min=509 max=515 mean=512.127 pp=6 n=10240
+[cal] ch1 meseta alto=513.235 bajo=511.522 amp=1.71216 ciclo=35.293% | modelo: grupo=1 cpv=111.7 rawZero=512.233 Vamp=0.0153282 Vbajo=-0.00635748
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=514 mean=511.952 pp=5 n=10240
+[cal] ch2 meseta alto=512.376 bajo=510.727 amp=1.64904 ciclo=74.2871% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0148029 Vbajo=-0.0115621
+[cal] ch2 raw min=509 max=515 mean=511.961 pp=6 n=10240
+[cal] ch2 meseta alto=512.38 bajo=510.723 amp=1.65756 ciclo=74.6777% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0148794 Vbajo=-0.0115999
+[cal] ch2 raw min=509 max=515 mean=511.892 pp=6 n=10240
+[cal] ch2 meseta alto=512.339 bajo=510.71 amp=1.6288 ciclo=72.5586% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0146212 Vbajo=-0.0117143
+[cal] ch2 raw min=509 max=515 mean=511.977 pp=6 n=10240
+[cal] ch2 meseta alto=512.39 bajo=510.707 amp=1.68261 ciclo=75.4297% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0151042 Vbajo=-0.0117367
+[cal] ch2 raw min=508 max=515 mean=512.017 pp=7 n=10240
+[cal] ch2 meseta alto=513.155 bajo=511.592 amp=1.5633 ciclo=27.1973% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0140332 Vbajo=-0.00379824
+[cal] ch2 raw min=509 max=515 mean=511.94 pp=6 n=10240
+[cal] ch2 meseta alto=512.346 bajo=510.716 amp=1.63015 ciclo=75.0684% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0146333 Vbajo=-0.01166
+[cal] ch2 raw min=509 max=515 mean=511.917 pp=6 n=10240
+[cal] ch2 meseta alto=512.355 bajo=510.705 amp=1.65036 ciclo=73.4668% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0148147 Vbajo=-0.0117605
+[cal] ch2 raw min=509 max=515 mean=512.106 pp=6 n=10240
+[cal] ch2 meseta alto=513.206 bajo=511.605 amp=1.60066 ciclo=31.3086% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0143686 Vbajo=-0.00367808
+[cal] ch2 raw min=509 max=515 mean=511.815 pp=6 n=10240
+[cal] ch2 meseta alto=512.301 bajo=510.703 amp=1.59756 ciclo=69.6094% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0143408 Vbajo=-0.0117761
+[cal] ch2 raw min=509 max=515 mean=511.971 pp=6 n=10240
+[cal] ch2 meseta alto=512.386 bajo=510.712 amp=1.67409 ciclo=75.2441% | modelo: grupo=1 cpv=111.4 rawZero=512.015 Vamp=0.0150277 Vbajo=-0.0116993
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 0.5 V/div.
+> Canal 2 ajustado a 0.5 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.802125 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.296407 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=509 max=515 mean=512.223 pp=6 n=10240
+[cal] ch1 meseta alto=513.252 bajo=511.58 amp=1.67291 ciclo=38.4473% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0149768 Vbajo=-0.00513482
+[cal] ch1 raw min=508 max=515 mean=512.175 pp=7 n=10240
+[cal] ch1 meseta alto=513.263 bajo=511.515 amp=1.74773 ciclo=37.7441% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0156467 Vbajo=-0.00571162
+[cal] ch1 raw min=509 max=516 mean=512.195 pp=7 n=10240
+[cal] ch1 meseta alto=513.271 bajo=511.556 amp=1.71524 ciclo=37.2559% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0153558 Vbajo=-0.0053476
+[cal] ch1 raw min=508 max=515 mean=512.171 pp=7 n=10240
+[cal] ch1 meseta alto=513.264 bajo=511.549 amp=1.71441 ciclo=36.2695% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0153483 Vbajo=-0.00540678
+[cal] ch1 raw min=509 max=515 mean=512.068 pp=6 n=10240
+[cal] ch1 meseta alto=513.224 bajo=511.516 amp=1.70771 ciclo=32.3242% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0152883 Vbajo=-0.00570245
+[cal] ch1 raw min=508 max=515 mean=512.14 pp=7 n=10240
+[cal] ch1 meseta alto=513.23 bajo=511.529 amp=1.70049 ciclo=35.9277% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0152238 Vbajo=-0.00558583
+[cal] ch1 raw min=508 max=515 mean=512.253 pp=7 n=10240
+[cal] ch1 meseta alto=513.252 bajo=511.585 amp=1.66762 ciclo=40.0879% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0149294 Vbajo=-0.00509051
+[cal] ch1 raw min=509 max=515 mean=512.143 pp=6 n=10240
+[cal] ch1 meseta alto=513.274 bajo=511.511 amp=1.76273 ciclo=35.8496% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0157809 Vbajo=-0.00574833
+[cal] ch1 raw min=509 max=515 mean=512.159 pp=6 n=10240
+[cal] ch1 meseta alto=513.235 bajo=511.553 amp=1.68239 ciclo=36.0059% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0150617 Vbajo=-0.00537239
+[cal] ch1 raw min=508 max=515 mean=512.097 pp=7 n=10240
+[cal] ch1 meseta alto=513.244 bajo=511.506 amp=1.7379 ciclo=34.0137% | modelo: grupo=1 cpv=111.7 rawZero=512.153 Vamp=0.0155586 Vbajo=-0.00579215
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=515 mean=511.893 pp=6 n=10240
+[cal] ch2 meseta alto=512.321 bajo=510.717 amp=1.60382 ciclo=73.2812% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.014397 Vbajo=-0.0109492
+[cal] ch2 raw min=509 max=515 mean=511.788 pp=6 n=10240
+[cal] ch2 meseta alto=512.294 bajo=510.692 amp=1.60181 ciclo=68.4375% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0143789 Vbajo=-0.0111765
+[cal] ch2 raw min=509 max=515 mean=512.053 pp=6 n=10240
+[cal] ch2 meseta alto=513.184 bajo=511.587 amp=1.59719 ciclo=29.1895% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0143375 Vbajo=-0.00314534
+[cal] ch2 raw min=509 max=516 mean=511.918 pp=7 n=10240
+[cal] ch2 meseta alto=512.366 bajo=510.708 amp=1.65773 ciclo=72.9785% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0148809 Vbajo=-0.0110343
+[cal] ch2 raw min=509 max=515 mean=511.915 pp=6 n=10240
+[cal] ch2 meseta alto=512.352 bajo=510.709 amp=1.64283 ciclo=73.4082% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0147471 Vbajo=-0.0110272
+[cal] ch2 raw min=508 max=515 mean=511.854 pp=7 n=10240
+[cal] ch2 meseta alto=512.331 bajo=510.703 amp=1.62789 ciclo=70.6934% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.014613 Vbajo=-0.0110782
+[cal] ch2 raw min=509 max=515 mean=511.912 pp=6 n=10240
+[cal] ch2 meseta alto=512.357 bajo=510.706 amp=1.65115 ciclo=73.0469% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0148219 Vbajo=-0.0110539
+[cal] ch2 raw min=509 max=515 mean=512.129 pp=6 n=10240
+[cal] ch2 meseta alto=513.171 bajo=511.638 amp=1.53267 ciclo=32.0117% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0137583 Vbajo=-0.0026817
+[cal] ch2 raw min=508 max=515 mean=511.899 pp=7 n=10240
+[cal] ch2 meseta alto=512.344 bajo=510.722 amp=1.62187 ciclo=72.5195% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.014559 Vbajo=-0.0109044
+[cal] ch2 raw min=509 max=515 mean=511.838 pp=6 n=10240
+[cal] ch2 meseta alto=512.342 bajo=510.694 amp=1.64733 ciclo=69.4238% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0147875 Vbajo=-0.0111567
+[cal] ch2 raw min=509 max=515 mean=511.968 pp=6 n=10240
+[cal] ch2 meseta alto=512.412 bajo=510.718 amp=1.69411 ciclo=73.7793% | modelo: grupo=1 cpv=111.4 rawZero=511.937 Vamp=0.0152075 Vbajo=-0.0109438
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 0.2 V/div.
+> Canal 2 ajustado a 0.2 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.715895 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.24836 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=508 max=515 mean=512.113 pp=7 n=10240
+[cal] ch1 meseta alto=513.255 bajo=511.519 amp=1.73571 ciclo=34.1797% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.015539 Vbajo=-0.00490115
+[cal] ch1 raw min=508 max=514 mean=512.03 pp=6 n=10240
+[cal] ch1 meseta alto=513.207 bajo=511.494 amp=1.71383 ciclo=31.3184% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0153431 Vbajo=-0.00513307
+[cal] ch1 raw min=509 max=515 mean=512.091 pp=6 n=10240
+[cal] ch1 meseta alto=513.248 bajo=511.485 amp=1.76377 ciclo=34.375% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0157903 Vbajo=-0.0052137
+[cal] ch1 raw min=508 max=516 mean=512.143 pp=8 n=10240
+[cal] ch1 meseta alto=513.276 bajo=511.491 amp=1.78511 ciclo=36.4844% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0159813 Vbajo=-0.00515223
+[cal] ch1 raw min=508 max=515 mean=512.207 pp=7 n=10240
+[cal] ch1 meseta alto=513.236 bajo=511.577 amp=1.65872 ciclo=37.9785% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0148498 Vbajo=-0.00438514
+[cal] ch1 raw min=509 max=515 mean=512.17 pp=6 n=10240
+[cal] ch1 meseta alto=513.269 bajo=511.516 amp=1.75376 ciclo=37.3242% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0157006 Vbajo=-0.00493427
+[cal] ch1 raw min=509 max=515 mean=512.131 pp=6 n=10240
+[cal] ch1 meseta alto=513.248 bajo=511.513 amp=1.73446 ciclo=35.6348% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0155279 Vbajo=-0.0049563
+[cal] ch1 raw min=508 max=515 mean=512.093 pp=7 n=10240
+[cal] ch1 meseta alto=513.228 bajo=511.524 amp=1.70373 ciclo=33.3984% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0152527 Vbajo=-0.00485725
+[cal] ch1 raw min=509 max=515 mean=512.052 pp=6 n=10240
+[cal] ch1 meseta alto=513.213 bajo=511.51 amp=1.70297 ciclo=31.8262% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.015246 Vbajo=-0.00498859
+[cal] ch1 raw min=508 max=515 mean=512.13 pp=7 n=10240
+[cal] ch1 meseta alto=513.287 bajo=511.494 amp=1.79253 ciclo=35.4395% | modelo: grupo=1 cpv=111.7 rawZero=512.067 Vamp=0.0160477 Vbajo=-0.00512593
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=515 mean=511.83 pp=6 n=10240
+[cal] ch2 meseta alto=512.318 bajo=510.708 amp=1.60962 ciclo=69.6973% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.014449 Vbajo=-0.0106027
+[cal] ch2 raw min=508 max=515 mean=511.979 pp=7 n=10240
+[cal] ch2 meseta alto=512.394 bajo=510.724 amp=1.66974 ciclo=75.127% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0149887 Vbajo=-0.0104558
+[cal] ch2 raw min=509 max=515 mean=511.938 pp=6 n=10240
+[cal] ch2 meseta alto=512.351 bajo=510.721 amp=1.63013 ciclo=74.6875% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0146331 Vbajo=-0.0104891
+[cal] ch2 raw min=509 max=515 mean=511.95 pp=6 n=10240
+[cal] ch2 meseta alto=512.379 bajo=510.716 amp=1.66259 ciclo=74.209% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0149245 Vbajo=-0.0105309
+[cal] ch2 raw min=509 max=515 mean=512.079 pp=6 n=10240
+[cal] ch2 meseta alto=513.166 bajo=511.621 amp=1.54538 ciclo=29.6289% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0138724 Vbajo=-0.00240958
+[cal] ch2 raw min=509 max=515 mean=511.892 pp=6 n=10240
+[cal] ch2 meseta alto=512.36 bajo=510.705 amp=1.65527 ciclo=71.709% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0148588 Vbajo=-0.0106279
+[cal] ch2 raw min=509 max=515 mean=512.087 pp=6 n=10240
+[cal] ch2 meseta alto=513.21 bajo=511.603 amp=1.60696 ciclo=30.1367% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0144251 Vbajo=-0.00256859
+[cal] ch2 raw min=508 max=515 mean=511.946 pp=7 n=10240
+[cal] ch2 meseta alto=512.391 bajo=510.711 amp=1.67979 ciclo=73.5156% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0150789 Vbajo=-0.0105734
+[cal] ch2 raw min=509 max=515 mean=512.118 pp=6 n=10240
+[cal] ch2 meseta alto=513.226 bajo=511.59 amp=1.63671 ciclo=32.2754% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0146922 Vbajo=-0.00268889
+[cal] ch2 raw min=509 max=515 mean=511.989 pp=6 n=10240
+[cal] ch2 meseta alto=512.397 bajo=510.736 amp=1.66119 ciclo=75.4199% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0149119 Vbajo=-0.0103498
+[cal] ch2 raw min=509 max=515 mean=511.952 pp=6 n=10240
+[cal] ch2 meseta alto=512.341 bajo=510.727 amp=1.61464 ciclo=75.9082% | modelo: grupo=1 cpv=111.4 rawZero=511.889 Vamp=0.0144941 Vbajo=-0.0104342
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 0.1 V/div.
+> Canal 2 ajustado a 0.1 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.628688 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.0543172 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=508 max=515 mean=511.994 pp=7 n=10240
+[cal] ch1 meseta alto=512.609 bajo=510.598 amp=2.01119 ciclo=69.4141% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00187262 Vbajo=-0.00128677
+[cal] ch1 raw min=508 max=516 mean=511.888 pp=8 n=10240
+[cal] ch1 meseta alto=512.587 bajo=510.58 amp=2.00713 ciclo=65.1758% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00186884 Vbajo=-0.00130332
+[cal] ch1 raw min=508 max=515 mean=512.022 pp=7 n=10240
+[cal] ch1 meseta alto=513.325 bajo=511.354 amp=1.97144 ciclo=33.877% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00183561 Vbajo=-0.000582568
+[cal] ch1 raw min=508 max=515 mean=512.08 pp=7 n=10240
+[cal] ch1 meseta alto=513.323 bajo=511.39 amp=1.93286 ciclo=35.6738% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00179968 Vbajo=-0.000548906
+[cal] ch1 raw min=508 max=515 mean=512.12 pp=7 n=10240
+[cal] ch1 meseta alto=513.308 bajo=511.452 amp=1.85644 ciclo=35.9863% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00172853 Vbajo=-0.000491735
+[cal] ch1 raw min=508 max=515 mean=511.996 pp=7 n=10240
+[cal] ch1 meseta alto=512.605 bajo=510.632 amp=1.97295 ciclo=69.1309% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00183701 Vbajo=-0.00125476
+[cal] ch1 raw min=508 max=515 mean=512.205 pp=7 n=10240
+[cal] ch1 meseta alto=513.331 bajo=511.475 amp=1.85613 ciclo=39.3262% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00172824 Vbajo=-0.00046979
+[cal] ch1 raw min=508 max=516 mean=512.071 pp=8 n=10240
+[cal] ch1 meseta alto=513.31 bajo=511.403 amp=1.907 ciclo=35.0098% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00177561 Vbajo=-0.000536528
+[cal] ch1 raw min=508 max=515 mean=512.1 pp=7 n=10240
+[cal] ch1 meseta alto=513.337 bajo=511.406 amp=1.93198 ciclo=35.9668% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00179886 Vbajo=-0.000534606
+[cal] ch1 raw min=508 max=515 mean=512.183 pp=7 n=10240
+[cal] ch1 meseta alto=513.321 bajo=511.476 amp=1.84491 ciclo=38.3301% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.0017178 Vbajo=-0.000469121
+[cal] ch1 raw min=508 max=516 mean=512.022 pp=8 n=10240
+[cal] ch1 meseta alto=513.36 bajo=511.319 amp=2.0413 ciclo=34.4336% | modelo: grupo=0 cpv=1074 rawZero=511.98 Vamp=0.00190065 Vbajo=-0.000615271
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=515 mean=511.958 pp=6 n=10240
+[cal] ch2 meseta alto=512.27 bajo=510.784 amp=1.48558 ciclo=79.043% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00134685 Vbajo=-0.000825809
+[cal] ch2 raw min=508 max=516 mean=511.876 pp=8 n=10240
+[cal] ch2 meseta alto=512.268 bajo=510.722 amp=1.54589 ciclo=74.6094% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00140153 Vbajo=-0.000881967
+[cal] ch2 raw min=508 max=516 mean=511.873 pp=8 n=10240
+[cal] ch2 meseta alto=512.233 bajo=510.762 amp=1.47102 ciclo=75.5176% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00133365 Vbajo=-0.00084574
+[cal] ch2 raw min=508 max=515 mean=511.809 pp=7 n=10240
+[cal] ch2 meseta alto=512.223 bajo=510.745 amp=1.47789 ciclo=72.002% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00133988 Vbajo=-0.000861683
+[cal] ch2 raw min=509 max=515 mean=511.877 pp=6 n=10240
+[cal] ch2 meseta alto=512.245 bajo=510.758 amp=1.48776 ciclo=75.2637% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00134883 Vbajo=-0.000849971
+[cal] ch2 raw min=508 max=515 mean=511.904 pp=7 n=10240
+[cal] ch2 meseta alto=512.3 bajo=510.716 amp=1.58381 ciclo=75.0293% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00143591 Vbajo=-0.000887619
+[cal] ch2 raw min=508 max=515 mean=511.659 pp=7 n=10240
+[cal] ch2 meseta alto=512.184 bajo=510.686 amp=1.49765 ciclo=64.9805% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00135779 Vbajo=-0.000914883
+[cal] ch2 raw min=508 max=516 mean=511.889 pp=8 n=10240
+[cal] ch2 meseta alto=512.251 bajo=510.742 amp=1.50826 ciclo=76.0547% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00136742 Vbajo=-0.000863886
+[cal] ch2 raw min=509 max=515 mean=511.897 pp=6 n=10240
+[cal] ch2 meseta alto=512.238 bajo=510.762 amp=1.47625 ciclo=76.8945% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00133839 Vbajo=-0.000846323
+[cal] ch2 raw min=509 max=516 mean=511.899 pp=7 n=10240
+[cal] ch2 meseta alto=512.24 bajo=510.77 amp=1.47014 ciclo=76.8164% | modelo: grupo=0 cpv=1103 rawZero=511.695 Vamp=0.00133285 Vbajo=-0.000838721
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 0.05 V/div.
+> Canal 2 ajustado a 0.05 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.735133 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.15588 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=508 max=515 mean=511.938 pp=7 n=10240
+[cal] ch1 meseta alto=512.616 bajo=510.594 amp=2.02155 ciclo=66.4551% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00188226 Vbajo=-0.00138916
+[cal] ch1 raw min=508 max=515 mean=511.917 pp=7 n=10240
+[cal] ch1 meseta alto=512.625 bajo=510.547 amp=2.07797 ciclo=65.9375% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.0019348 Vbajo=-0.00143333
+[cal] ch1 raw min=509 max=516 mean=512.202 pp=7 n=10240
+[cal] ch1 meseta alto=513.327 bajo=511.471 amp=1.85524 ciclo=39.3945% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00172741 Vbajo=-0.000572303
+[cal] ch1 raw min=509 max=515 mean=512.249 pp=6 n=10240
+[cal] ch1 meseta alto=513.344 bajo=511.513 amp=1.83135 ciclo=40.2344% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00170517 Vbajo=-0.000534033
+[cal] ch1 raw min=508 max=515 mean=512.051 pp=7 n=10240
+[cal] ch1 meseta alto=513.347 bajo=511.327 amp=2.02003 ciclo=35.8203% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00188085 Vbajo=-0.00070655
+[cal] ch1 raw min=508 max=515 mean=512.019 pp=7 n=10240
+[cal] ch1 meseta alto=513.326 bajo=511.323 amp=2.00248 ciclo=34.7363% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00186451 Vbajo=-0.000710219
+[cal] ch1 raw min=507 max=515 mean=511.92 pp=8 n=10240
+[cal] ch1 meseta alto=512.608 bajo=510.561 amp=2.04726 ciclo=66.3867% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.0019062 Vbajo=-0.00142004
+[cal] ch1 raw min=508 max=515 mean=512.11 pp=7 n=10240
+[cal] ch1 meseta alto=513.304 bajo=511.424 amp=1.88048 ciclo=36.4844% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00175092 Vbajo=-0.000616897
+[cal] ch1 raw min=508 max=515 mean=511.981 pp=7 n=10240
+[cal] ch1 meseta alto=512.629 bajo=510.614 amp=2.01457 ciclo=67.8418% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00187576 Vbajo=-0.00137039
+[cal] ch1 raw min=507 max=515 mean=512.198 pp=8 n=10240
+[cal] ch1 meseta alto=513.335 bajo=511.446 amp=1.88924 ciclo=39.8047% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00175907 Vbajo=-0.000595898
+[cal] ch1 raw min=508 max=515 mean=511.93 pp=7 n=10240
+[cal] ch1 meseta alto=512.579 bajo=510.575 amp=2.00397 ciclo=67.5977% | modelo: grupo=0 cpv=1074 rawZero=512.086 Vamp=0.00186589 Vbajo=-0.00140669
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=515 mean=511.804 pp=6 n=10240
+[cal] ch2 meseta alto=512.194 bajo=510.763 amp=1.43148 ciclo=72.7344% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.0012978 Vbajo=-0.000937574
+[cal] ch2 raw min=508 max=515 mean=511.904 pp=7 n=10240
+[cal] ch2 meseta alto=512.26 bajo=510.731 amp=1.5288 ciclo=76.7188% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00138604 Vbajo=-0.000966052
+[cal] ch2 raw min=509 max=516 mean=511.95 pp=7 n=10240
+[cal] ch2 meseta alto=512.278 bajo=510.773 amp=1.50536 ciclo=78.1836% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00136479 Vbajo=-0.000928039
+[cal] ch2 raw min=509 max=515 mean=511.856 pp=6 n=10240
+[cal] ch2 meseta alto=512.233 bajo=510.759 amp=1.47404 ciclo=74.4141% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00133639 Vbajo=-0.000940634
+[cal] ch2 raw min=508 max=515 mean=511.844 pp=7 n=10240
+[cal] ch2 meseta alto=512.267 bajo=510.647 amp=1.62087 ciclo=73.8574% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00146951 Vbajo=-0.00104267
+[cal] ch2 raw min=509 max=515 mean=511.833 pp=6 n=10240
+[cal] ch2 meseta alto=512.223 bajo=510.768 amp=1.4549 ciclo=73.1738% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00131904 Vbajo=-0.00093252
+[cal] ch2 raw min=509 max=515 mean=511.92 pp=6 n=10240
+[cal] ch2 meseta alto=512.248 bajo=510.787 amp=1.46172 ciclo=77.5195% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00132522 Vbajo=-0.00091566
+[cal] ch2 raw min=509 max=516 mean=511.917 pp=7 n=10240
+[cal] ch2 meseta alto=512.258 bajo=510.764 amp=1.49384 ciclo=77.1875% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00135435 Vbajo=-0.000936131
+[cal] ch2 raw min=509 max=515 mean=511.912 pp=6 n=10240
+[cal] ch2 meseta alto=512.238 bajo=510.78 amp=1.45796 ciclo=77.6465% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00132181 Vbajo=-0.000921511
+[cal] ch2 raw min=509 max=516 mean=511.954 pp=7 n=10240
+[cal] ch2 meseta alto=512.263 bajo=510.777 amp=1.48549 ciclo=79.209% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00134677 Vbajo=-0.000924134
+[cal] ch2 raw min=508 max=515 mean=511.537 pp=7 n=10240
+[cal] ch2 meseta alto=512.237 bajo=510.596 amp=1.64058 ciclo=57.3145% | modelo: grupo=0 cpv=1103 rawZero=511.797 Vamp=0.00148738Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+>  Vbajo=-0.00108817
+Canal 1 ajustado a 0.02 V/div.
+> Canal 2 ajustado a 0.02 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.579762 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.0785359 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=508 max=515 mean=511.97 pp=7 n=10240
+[cal] ch1 meseta alto=512.61 bajo=510.62 amp=1.99039 ciclo=67.8418% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00185325 Vbajo=-0.00122064
+[cal] ch1 raw min=507 max=515 mean=511.794 pp=8 n=10240
+[cal] ch1 meseta alto=512.563 bajo=510.547 amp=2.01527 ciclo=61.875% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00187642 Vbajo=-0.00128806
+[cal] ch1 raw min=508 max=515 mean=511.907 pp=7 n=10240
+[cal] ch1 meseta alto=512.591 bajo=510.58 amp=2.01095 ciclo=65.9766% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00187239 Vbajo=-0.00125762
+[cal] ch1 raw min=507 max=515 mean=511.961 pp=8 n=10240
+[cal] ch1 meseta alto=512.615 bajo=510.587 amp=2.02791 ciclo=67.7441% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00188818 Vbajo=-0.00125085
+[cal] ch1 raw min=508 max=515 mean=511.983 pp=7 n=10240
+[cal] ch1 meseta alto=512.608 bajo=510.621 amp=1.9865 ciclo=68.584% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00184963 Vbajo=-0.00121945
+[cal] ch1 raw min=508 max=515 mean=512.098 pp=7 n=10240
+[cal] ch1 meseta alto=513.332 bajo=511.411 amp=1.92057 ciclo=35.7715% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00178824 Vbajo=-0.000483829
+[cal] ch1 raw min=509 max=515 mean=512.168 pp=6 n=10240
+[cal] ch1 meseta alto=513.32 bajo=511.481 amp=1.83951 ciclo=37.373% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00171276 Vbajo=-0.000419158
+[cal] ch1 raw min=508 max=516 mean=512.064 pp=8 n=10240
+[cal] ch1 meseta alto=513.319 bajo=511.367 amp=1.95156 ciclo=35.7129% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.0018171 Vbajo=-0.000524912
+[cal] ch1 raw min=508 max=515 mean=512.033 pp=7 n=10240
+[cal] ch1 meseta alto=513.313 bajo=511.351 amp=1.96205 ciclo=34.7754% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00182686 Vbajo=-0.000540279
+[cal] ch1 raw min=508 max=515 mean=512.109 pp=7 n=10240
+[cal] ch1 meseta alto=513.31 bajo=511.427 amp=1.88286 ciclo=36.2012% | modelo: grupo=0 cpv=1074 rawZero=511.931 Vamp=0.00175312 Vbajo=-0.000468709
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=516 mean=511.716 pp=7 n=10240
+[cal] ch2 meseta alto=512.209 bajo=510.712 amp=1.49633 ciclo=67.0996% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.0013566 Vbajo=-0.000912927
+[cal] ch2 raw min=509 max=516 mean=511.929 pp=7 n=10240
+[cal] ch2 meseta alto=512.246 bajo=510.783 amp=1.46332 ciclo=78.3301% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.00132667 Vbajo=-0.000849094
+[cal] ch2 raw min=508 max=516 mean=511.769 pp=8 n=10240
+[cal] ch2 meseta alto=512.242 bajo=510.684 amp=1.55843 ciclo=69.6289% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.0014129 Vbajo=-0.000938724
+[cal] ch2 raw min=508 max=516 mean=511.735 pp=8 n=10240
+[cal] ch2 meseta alto=512.215 bajo=510.701 amp=1.51387 ciclo=68.252% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.0013725 Vbajo=-0.000922949
+[cal] ch2 raw min=509 max=515 mean=511.863 pp=6 n=10240
+[cal] ch2 meseta alto=512.237 bajo=510.746 amp=1.49125 ciclo=74.9219% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.001352 Vbajo=-0.000882348
+[cal] ch2 raw min=508 max=516 mean=511.713 pp=8 n=10240
+[cal] ch2 meseta alto=512.176 bajo=510.725 amp=1.45122 ciclo=68.0859% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.00131571 Vbajo=-0.000901566
+[cal] ch2 raw min=508 max=516 mean=511.772 pp=8 n=10240
+[cal] ch2 meseta alto=512.204 bajo=510.742 amp=1.46195 ciclo=70.4492% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.00132543 Vbajo=-0.000885859
+[cal] ch2 raw min=508 max=515 mean=511.841 pp=7 n=10240
+[cal] ch2 meseta alto=512.231 bajo=510.749 amp=1.48218 ciclo=73.6914% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.00134377 Vbajo=-0.000879659
+[cal] ch2 raw min=509 max=515 mean=511.827 pp=6 n=10240
+[cal] ch2 meseta alto=512.25 bajo=510.681 amp=1.56929 ciclo=73.0566% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.00142274 Vbajo=-0.000941663
+[cal] ch2 raw min=509 max=515 mean=511.871 pp=6 n=10240
+[cal] ch2 meseta alto=512.227 bajo=510.758 amp=1.46808 ciclo=75.7812% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.00133099 Vbajo=-0.000871141
+[cal] ch2 raw min=508 max=515 mean=511.892 pp=7 n=10240
+[cal] ch2 meseta alto=512.244 bajo=510.747 amp=1.49707 ciclo=76.4844% | modelo: grupo=0 cpv=1103 rawZero=511.719 Vamp=0.00135727 Vbajo=-0.00088183
+Estadisticas crudas desactivadas.
+> Comando desconocido: == (escribe 'help')
+> Canal 1 ajustado a 0.01 V/div.
+> Canal 2 ajustado a 0.01 V/div.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.580641 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.0981648 cuentas).
+> Estadisticas crudas activadas para canal 1 (impresas a stderr por frame).
+> [cal] ch1 raw min=509 max=515 mean=512.154 pp=6 n=10240
+[cal] ch1 meseta alto=513.345 bajo=511.42 amp=1.92516 ciclo=38.1641% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00179251 Vbajo=-0.0004766
+[cal] ch1 raw min=508 max=515 mean=511.975 pp=7 n=10240
+[cal] ch1 meseta alto=512.694 bajo=510.56 amp=2.13414 ciclo=66.3184% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00198709 Vbajo=-0.00127698
+[cal] ch1 raw min=508 max=515 mean=512.057 pp=7 n=10240
+[cal] ch1 meseta alto=513.313 bajo=511.363 amp=1.95059 ciclo=35.6055% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00181619 Vbajo=-0.000529548
+[cal] ch1 raw min=508 max=516 mean=512.175 pp=8 n=10240
+[cal] ch1 meseta alto=513.344 bajo=511.443 amp=1.90036 ciclo=38.5156% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00176942 Vbajo=-0.000454548
+[cal] ch1 raw min=508 max=516 mean=512.035 pp=8 n=10240
+[cal] ch1 meseta alto=513.282 bajo=511.407 amp=1.87444 ciclo=33.4961% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00174528 Vbajo=-0.000488037
+[cal] ch1 raw min=508 max=515 mean=511.995 pp=7 n=10240
+[cal] ch1 meseta alto=512.643 bajo=510.594 amp=2.04901 ciclo=68.3594% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00190783 Vbajo=-0.00124535
+[cal] ch1 raw min=509 max=515 mean=512.099 pp=6 n=10240
+[cal] ch1 meseta alto=513.314 bajo=511.401 amp=1.91281 ciclo=36.4551% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00178102 Vbajo=-0.000493693
+[cal] ch1 raw min=508 max=515 mean=512.2 pp=7 n=10240
+[cal] ch1 meseta alto=513.338 bajo=511.461 amp=1.87769 ciclo=39.3945% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00174832 Vbajo=-0.000438508
+[cal] ch1 raw min=508 max=516 mean=512.023 pp=8 n=10240
+[cal] ch1 meseta alto=513.308 bajo=511.345 amp=1.9631 ciclo=34.541% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00182784 Vbajo=-0.000546156
+[cal] ch1 raw min=508 max=515 mean=512.006 pp=7 n=10240
+[cal] ch1 meseta alto=513.309 bajo=511.354 amp=1.95465 ciclo=33.3691% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00181998 Vbajo=-0.000537751
+[cal] ch1 raw min=508 max=516 mean=512.12 pp=8 n=10240
+[cal] ch1 meseta alto=513.337 bajo=511.419 amp=1.91866 ciclo=36.5234% | modelo: grupo=0 cpv=1074 rawZero=511.932 Vamp=0.00178647 Vbajo=-0.000477534
+Estadisticas crudas activadas para canal 2 (impresas a stderr por frame).
+> [cal] ch2 raw min=509 max=515 mean=511.935 pp=6 n=10240
+[cal] ch2 meseta alto=512.245 bajo=510.77 amp=1.47532 ciclo=78.9844% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00133755 Vbajo=-0.000878498
+[cal] ch2 raw min=508 max=516 mean=511.869 pp=8 n=10240
+[cal] ch2 meseta alto=512.233 bajo=510.772 amp=1.4618 ciclo=75.0781% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00132529 Vbajo=-0.000877074
+[cal] ch2 raw min=509 max=515 mean=511.807 pp=6 n=10240
+[cal] ch2 meseta alto=512.201 bajo=510.748 amp=1.45233 ciclo=72.9199% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00131671 Vbajo=-0.000898167
+[cal] ch2 raw min=509 max=515 mean=511.761 pp=6 n=10240
+[cal] ch2 meseta alto=512.216 bajo=510.728 amp=1.48747 ciclo=69.4043% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00134857 Vbajo=-0.000916219
+[cal] ch2 raw min=508 max=516 mean=511.774 pp=8 n=10240
+[cal] ch2 meseta alto=512.226 bajo=510.717 amp=1.50813 ciclo=70.0293% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.0013673 Vbajo=-0.000926081
+[cal] ch2 raw min=508 max=516 mean=511.947 pp=8 n=10240
+[cal] ch2 meseta alto=512.262 bajo=510.775 amp=1.48714 ciclo=78.7988% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00134827 Vbajo=-0.00087375
+[cal] ch2 raw min=509 max=516 mean=511.94 pp=7 n=10240
+[cal] ch2 meseta alto=512.28 bajo=510.768 amp=1.51184 ciclo=77.5488% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00137066 Vbajo=-0.000880544
+[cal] ch2 raw min=508 max=515 mean=511.755 pp=7 n=10240
+[cal] ch2 meseta alto=512.247 bajo=510.684 amp=1.56237 ciclo=68.5254% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00141648 Vbajo=-0.000956038
+[cal] ch2 raw min=508 max=515 mean=511.715 pp=7 n=10240
+[cal] ch2 meseta alto=512.197 bajo=510.708 amp=1.48944 ciclo=67.6074% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00135036 Vbajo=-0.000934811
+[cal] ch2 raw min=508 max=515 mean=511.754 pp=7 n=10240
+[cal] ch2 meseta alto=512.199 bajo=510.741 amp=1.45766 ciclo=69.5215% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00132154 Vbajo=-0.000904675
+[cal] ch2 raw min=508 max=515 mean=511.549 pp=7 n=10240
+[cal] ch2 meseta alto=512.132 bajo=510.679 amp=1.45344 ciclo=59.8438% | modelo: grupo=0 cpv=1103 rawZero=511.739 Vamp=0.00131771 Vbajo=-0.000961215
+Estadisticas crudas desactivadas.
+> Canal 1 ajustado a 5 V/div.
+> Canal 2 ajustado a 5 V/div.
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.25
+> offset canal 2 = 0.25
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.130242 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.383506 cuentas).
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.5
+> offset canal 2 = 0.5
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.722047 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.187813 cuentas).
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.75
+> offset canal 2 = 0.75
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.835535 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.124256 cuentas).
+> offset canal 1 = 0.5
+> offset canal 2 = 0.5
+> Comando desconocido: == (escribe 'help')
+> Canal 1 en acoplamiento ac.
+> Canal 2 en acoplamiento ac.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.718336 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.49377 cuentas).
+> Canal 1 en acoplamiento dc.
+> Canal 2 en acoplamiento dc.
+> Canal 1 ajustado a 0.5 V/div.
+> Canal 2 ajustado a 0.5 V/div.
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.25
+> offset canal 2 = 0.25
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.0419609 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.660069 cuentas).
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.5
+> offset canal 2 = 0.5
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.749879 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.50129 cuentas).
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.75
+> offset canal 2 = 0.75
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.584168 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.230897 cuentas).
+> offset canal 1 = 0.5
+> offset canal 2 = 0.5
+> Comando desconocido: == (escribe 'help')
+> Canal 1 en acoplamiento ac.
+> Canal 2 en acoplamiento ac.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.83484 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.551778 cuentas).
+> Canal 1 en acoplamiento dc.
+> Canal 2 en acoplamiento dc.
+> Canal 1 ajustado a 0.05 V/div.
+> Canal 2 ajustado a 0.05 V/div.
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.25
+> offset canal 2 = 0.25
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.307195 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.850303 cuentas).
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.5
+> offset canal 2 = 0.5
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.641871 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.373165 cuentas).
+> Comando desconocido: == (escribe 'help')
+> offset canal 1 = 0.75
+> offset canal 2 = 0.75
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.457996 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.0352914 cuentas).
+> offset canal 1 = 0.5
+> offset canal 2 = 0.5
+> Comando desconocido: == (escribe 'help')
+> Canal 1 en acoplamiento ac.
+> Canal 2 en acoplamiento ac.
+> Cero del canal 1 calibrado para el grupo actual (correccion 0.808473 cuentas).
+> Cero del canal 2 calibrado para el grupo actual (correccion 0.576973 cuentas).
+> Canal 1 en acoplamiento dc.
+> Canal 2 en acoplamiento dc.
+> 
