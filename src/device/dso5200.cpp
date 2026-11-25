@@ -675,7 +675,9 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
         const double cpvCh = countsPerVolt(channel);
         unsigned long long chSum = 0;
 
-        unsigned bufferPosition = trigger.point * 2;
+        // Igual que en el modo normal (ver abajo): `trigger.point * 2` es lo más nuevo del búfer
+        // circular. MEDIDO 2026-11-25: sin el `+ kChannels` las 2 primeras muestras eran las del final.
+        unsigned bufferPosition = trigger.point * 2 + kChannels;
         for (unsigned pos = 0; pos < totalSampleCount; ++pos, ++bufferPosition) {
             if (bufferPosition >= totalSampleCount) bufferPosition %= totalSampleCount;
 
@@ -708,7 +710,13 @@ CaptureFrame Dso5200Control::convertRawDataToSamples(const std::vector<unsigned 
             unsigned long long chSum = 0;
             const unsigned extraBitsIndex = 8 - channel * 2;
 
-            unsigned bufferPosition = trigger.point * 2;
+            // `trigger.point * 2` apunta a la muestra MÁS NUEVA del búfer circular (la última que se
+            // escribió), no a la más vieja: el registro empieza en la siguiente. Leer desde
+            // `trigger.point * 2` ponía la muestra más nueva como muestra 0 (punto suelto a la
+            // izquierda cuando el inicio y el final del registro están en niveles distintos).
+            // MEDIDO 2026-11-25 con la CAL: en 136 de 136 registros con inicio != final, la muestra 0
+            // coincidía con el final del registro, nunca con el inicio.
+            unsigned bufferPosition = trigger.point * 2 + kChannels;
             for (unsigned realPosition = 0; realPosition < data[channel].size();
                 ++realPosition, bufferPosition += kChannels) {
                 if (bufferPosition >= totalSampleCount) bufferPosition %= totalSampleCount;
