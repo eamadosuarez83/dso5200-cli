@@ -562,10 +562,19 @@ bool Dso5200Control::doSetPretriggerPosition(double position) {
     // default, centered trigger position (0xebff/0xebff, confirmed byte-for-byte via USB capture of
     // the official Windows software - see docs/GUIA_ESTUDIO.md). Symptom: capture buffers reading
     // as one tiny transition edge plus stale/flat filler for the rest of the record.
+    // En modo rápido el aparato junta los dos ADC en un canal y guarda 2 muestras por posición de
+    // memoria: los contadores de pre/postdisparo cuentan POSICIONES (recordLength / kChannels), no
+    // muestras. Antes solo se dividía la posición y no la longitud: el predisparo pedido se salía de
+    // rango y el registro quedaba entero DESPUÉS del flanco (MEDIDO 2026-11-25 con la CAL, 2-20 µs/div:
+    // 361 de 361 registros sin flanco; dividiendo ambos, el flanco cae en la muestra 10240 de 20480).
     double positionSamples = position * recordLength;
-    if (isFastRate()) positionSamples /= kChannels;
+    unsigned counterLength = recordLength;
+    if (isFastRate()) {
+        positionSamples /= kChannels;
+        counterLength /= kChannels;
+    }
 
-    const unsigned positionPre = 0xffff - recordLength + (unsigned)positionSamples;
+    const unsigned positionPre = 0xffff - counterLength + (unsigned)positionSamples;
     const unsigned positionPost = 0xffff - (unsigned)positionSamples;
 
     bufferCommand.setTriggerPositionPre((uint16_t)positionPre);
